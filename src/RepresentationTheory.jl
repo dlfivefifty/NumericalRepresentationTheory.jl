@@ -1,9 +1,9 @@
 module RepresentationTheory
-    using Base
+    using Base, Compose
 
 ## Kronecker product of Sn
 
-export perm,permkronpow,permmults,topart
+export perm,permkronpow,permmults,topart,plotmults
 
 function perm(a,b,n)
     ret=eye(n)
@@ -39,12 +39,22 @@ function wilkshift(A)
 end
 
 
+function slnorm(m,kr,jr)
+  ret=0.0
+  for j=jr
+    @simd for k=kr
+      @inbounds ret=ret+m[k,j]^2
+    end
+  end
+  ret
+end
+
 function deflateblock(v)
     tol=10E-8
     for m=1:size(v[1],1)-1
         allzero=true
         for vk in v
-            if norm(vk[1:m,m+1:end],Inf)>tol
+            if slnorm(vk,1:m,m+1:size(vk,2)) >tol
                 allzero=false
                 break
             end
@@ -91,7 +101,7 @@ function simdiagonalize(v::Vector{Matrix{Float64}})
     end
 
     for k=length(v):-1:1
-        if norm(v[k][1:end-1,end],Inf)>100eps()
+        if slnorm(v[k],1:size(v[k],1)-1,size(v[k],2))>100eps()
             μ=wilkshift(v[k])
             Q=eigfact(Symmetric(v[k]-μ*I))[:vectors]
             df=deflate(map(v->Q'*v*Q,v))
@@ -181,6 +191,48 @@ function topart(m::Matrix)
   end
   ret
 end
+
+
+
+## Plotting
+
+function plotpart(part)
+  ε=0.01
+  x,y=part[1],length(part)
+  box(ε,k,j,x,y)=rectangle((k-1)/x+ε,(j-1)/y+ε,1/x-ε,1/y-ε)
+  cnt=compose(context())
+
+  for k=1:length(part),j=1:part[k]
+    cnt=compose(cnt,box(ε,j,k,x,y))
+  end
+
+  compose(cnt,fill("tomato"),stroke("black"))
+end
+
+
+
+function plotmults(dict)
+  cnt=compose(context());m=length(dict);k=0
+  kys=keys(dict)
+  ml=mapreduce(length,max,kys)
+  nl=mapreduce(first,max,kys)
+  ε=0.05
+  for ky in kys
+    compose!(cnt,(context(k/m+ε/m,0,first(ky)/(nl*m)-ε/m,0.5*length(ky)/(nl*ml)),plotpart(ky)),
+                 (context(),text(k/m*(1+ε)+0.2/m,(0.6+1/ml)/nl,string(dict[ky])),fontsize(4)))
+    k+=1
+  end
+  cnt
+end
+
+
+function plotmults(perm,n)
+  mults=permmults(perm,n)
+  plotmults(partmults(topart(mults)))
+end
+
+
+
 end #module
 
 
