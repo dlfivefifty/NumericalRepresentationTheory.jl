@@ -145,9 +145,27 @@ function reducesn(perm,n)
     simdiagonalize(deflate(w)),w
 end
 
+function reducesn(gen)
+    n=length(gen)+1
+    w=Array(Array{Float64,2},n-1)
+    for k=1:n-1
+        a=gen[k]
+        w[k]=a
+        for j=k-1:-1:1
+            a=gen[j]*a*gen[j]
+            w[k]+=a
+        end
+    end
 
-function permmults(perm,n)
-    Q,v=reducesn(perm,n)
+    simdiagonalize(deflate(w)),w
+end
+
+
+
+
+
+function permmults(perm...)
+    Q,v=reducesn(perm...)
     int(hcat(map(v->diag(Q'*v*Q),v)...))
 end
 
@@ -211,7 +229,7 @@ end
 
 
 
-function plotmults(dict)
+function plotmults(dict::Dict)
   cnt=compose(context());m=length(dict);k=0
   kys=keys(dict)
   ml=mapreduce(length,max,kys)
@@ -226,8 +244,8 @@ function plotmults(dict)
 end
 
 
-function plotmults(perm,n)
-  mults=permmults(perm,n)
+function plotmults(perm...)
+  mults=permmults(perm...)
   plotmults(partmults(topart(mults)))
 end
 
