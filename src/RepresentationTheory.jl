@@ -43,7 +43,7 @@ function slnorm(m,kr,jr)
   ret=0.0
   for j=jr
     @simd for k=kr
-      @inbounds ret=ret+m[k,j]^2
+      @inbounds ret=ret+abs2(m[k,j])
     end
   end
   ret
@@ -54,7 +54,7 @@ function deflateblock(v)
     for m=1:size(v[1],1)-1
         allzero=true
         for vk in v
-            if slnorm(vk,1:m,m+1:size(vk,2)) >tol
+            if slnorm(vk,m+1:size(vk,2),1:m) >tol
                 allzero=false
                 break
             end
@@ -100,11 +100,10 @@ function simdiagonalize(v::Vector{Matrix{Float64}})
         return eye(1)
     end
 
-    for k=length(v):-1:1
+    for k=1:length(v)
         if slnorm(v[k],1:size(v[k],1)-1,size(v[k],2))>100eps()
-            μ=wilkshift(v[k])
-            Q=eigfact(Symmetric(v[k]-μ*I))[:vectors]
-            df=deflate(map(v->Q'*v*Q,v))
+            Q=eigfact(v[k])[:vectors]
+            df=deflate(map(v->real(inv(Q)*v*Q),v))
             if length(df)>1
                 Q2=simdiagonalize(df)
                 return Q*Q2
@@ -131,8 +130,7 @@ function simdiagonalize(v::Vector{Vector{Matrix{Float64}}})
     Q
 end
 
-
-function reducesn(perm,n)
+function gelfandbasis(perm,n)
     w=Array(Array{Float64,2},n-1)
 
     for k=1:n-1
@@ -141,11 +139,10 @@ function reducesn(perm,n)
             w[k]+=perm(j,k+1,n)
         end
     end
-
-    simdiagonalize(deflate(w)),w
+    w
 end
 
-function reducesn(gen)
+function gelfandbasis(gen)
     n=length(gen)+1
     w=Array(Array{Float64,2},n-1)
     for k=1:n-1
@@ -156,7 +153,12 @@ function reducesn(gen)
             w[k]+=a
         end
     end
+    w
+end
 
+
+function reducesn(perm...)
+    w=gelfandbasis(perm...)
     simdiagonalize(deflate(w)),w
 end
 
