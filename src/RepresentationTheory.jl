@@ -1,5 +1,5 @@
 module RepresentationTheory
-    using Base, Compose
+using Base, Compose
 
 ## Kronecker product of Sn
 
@@ -28,7 +28,7 @@ function wilkshift(A)
     if size(A,1)==1
         A[1,1]
     else
-       a1,a,b=A[end-1,end-1],A[end,end],A[end-1,end]
+        a1,a,b=A[end-1,end-1],A[end,end],A[end-1,end]
         if a1==a==b==0
             0.0
         else
@@ -40,13 +40,13 @@ end
 
 
 function slnorm(m,kr,jr)
-  ret=0.0
-  for j=jr
-    @simd for k=kr
-      @inbounds ret=ret+abs2(m[k,j])
+    ret=0.0
+    for j=jr
+        for k=kr
+            @inbounds ret=ret+abs2(m[k,j])
+        end
     end
-  end
-  ret
+    ret
 end
 
 function deflateblock(v)
@@ -94,16 +94,24 @@ function deflate(v)
 end
 
 
+function nullQ(w,μ)
+    Q1=null(w-μ*I)
+    Q2=null(Q1')
+    Q=[Q1 Q2]
+end
+nullQ(M)=nullQ(M,int(eigvals(M)[rand(1:size(M,1))]))
 
+
+# returns Q
 function simdiagonalize(v::Vector{Matrix{Float64}})
     if size(v[1],1)==1
         return eye(1)
     end
 
     for k=1:length(v)
-        if slnorm(v[k],1:size(v[k],1)-1,size(v[k],2))>100eps()
-            Q=eigfact(v[k])[:vectors]
-            df=deflate(map(v->real(inv(Q)*v*Q),v))
+        if slnorm(v[k],size(v[k],2),1:size(v[k],1)-1)>100eps()
+            Q=nullQ(v[k])
+            df=deflate(map(v->Q'*v*Q,v))
             if length(df)>1
                 Q2=simdiagonalize(df)
                 return Q*Q2
@@ -117,6 +125,7 @@ function simdiagonalize(v::Vector{Matrix{Float64}})
 end
 
 # a list of each blocks
+# returns Q
 function simdiagonalize(v::Vector{Vector{Matrix{Float64}}})
     d=mapreduce(vk->size(vk[1],1),+,v)
     Q=zeros(d,d)
@@ -175,41 +184,41 @@ end
 
 
 function partmults(parts)
-  dict=Dict{Vector{Int64},Int64}()
+    dict=Dict{Vector{Int64},Int64}()
 
-  for part in parts
-    if !haskey(dict,part)
-      dict[part]=0
+    for part in parts
+        if !haskey(dict,part)
+            dict[part]=0
+        end
+        dict[part]+=1
     end
-    dict[part]+=1
-  end
-  dict
+    dict
 end
 
 function topart(part::Vector)
-  part=sort(part)
-  p=zeros(Int64,1-first(part))
-  k=1
-  while k≤length(part)
-    pk=part[k]
-    rk=pk<0?1-pk:1
-    p[rk]+=1
-    k+=1
-    while k≤length(part)&&part[k]==pk
-      k+=1
-      rk+=1
-      p[rk]+=1
+    part=sort(part)
+    p=zeros(Int64,1-first(part))
+    k=1
+    while k≤length(part)
+        pk=part[k]
+        rk=pk<0?1-pk:1
+        p[rk]+=1
+        k+=1
+        while k≤length(part)&&part[k]==pk
+            k+=1
+            rk+=1
+            p[rk]+=1
+        end
     end
-  end
-  p
+    p
 end
 
 function topart(m::Matrix)
-  ret=Array(Vector{Int64},size(m,1))
-  for k=1:size(m,1)
-    ret[k]=topart([0;vec(m[k,:])])
-  end
-  ret
+    ret=Array(Vector{Int64},size(m,1))
+    for k=1:size(m,1)
+        ret[k]=topart([0;vec(m[k,:])])
+    end
+    ret
 end
 
 
@@ -217,38 +226,38 @@ end
 ## Plotting
 
 function plotpart(part)
-  ε=0.01
-  x,y=part[1],length(part)
-  box(ε,k,j,x,y)=rectangle((k-1)/x+ε,(j-1)/y+ε,1/x-ε,1/y-ε)
-  cnt=compose(context())
+    ε=0.01
+    x,y=part[1],length(part)
+    box(ε,k,j,x,y)=rectangle((k-1)/x+ε,(j-1)/y+ε,1/x-ε,1/y-ε)
+    cnt=compose(context())
 
-  for k=1:length(part),j=1:part[k]
-    cnt=compose(cnt,box(ε,j,k,x,y))
-  end
+    for k=1:length(part),j=1:part[k]
+        cnt=compose(cnt,box(ε,j,k,x,y))
+    end
 
-  compose(cnt,fill("tomato"),stroke("black"))
+    compose(cnt,fill("tomato"),stroke("black"))
 end
 
 
 
 function plotmults(dict::Dict)
-  cnt=compose(context());m=length(dict);k=0
-  kys=keys(dict)
-  ml=mapreduce(length,max,kys)
-  nl=mapreduce(first,max,kys)
-  ε=0.05
-  for ky in kys
-    compose!(cnt,(context(k/m+ε/m,0,first(ky)/(nl*m)-ε/m,0.5*length(ky)/(nl*ml)),plotpart(ky)),
+    cnt=compose(context());m=length(dict);k=0
+    kys=keys(dict)
+    ml=mapreduce(length,max,kys)
+    nl=mapreduce(first,max,kys)
+    ε=0.05
+    for ky in kys
+        compose!(cnt,(context(k/m+ε/m,0,first(ky)/(nl*m)-ε/m,0.5*length(ky)/(nl*ml)),plotpart(ky)),
                  (context(),text(k/m*(1+ε)+0.2/m,(0.6+1/ml)/nl,string(dict[ky])),fontsize(4)))
-    k+=1
-  end
-  cnt
+        k+=1
+    end
+    cnt
 end
 
 
 function plotmults(perm...)
-  mults=permmults(perm...)
-  plotmults(partmults(topart(mults)))
+    mults=permmults(perm...)
+    plotmults(partmults(topart(mults)))
 end
 
 
