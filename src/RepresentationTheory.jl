@@ -96,11 +96,7 @@ end
 
 function nullQ(w,μ)
 #    @assert imag(μ)<1000000eps()
-
-    Q1=null(w-μ*I)
-    Q2=null(Q1')
-    Q=[Q1 Q2]
-    Q
+    svd(w-μ*I)[end][:,end:-1:1]
 end
 nullQ(M)=nullQ(M,eigvals(M)|>first)
 
