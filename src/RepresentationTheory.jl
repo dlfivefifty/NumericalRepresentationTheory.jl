@@ -61,8 +61,8 @@ function deflateblock(v)
         end
 
         if allzero
-            w1=Array(Matrix{Float64},length(v))
-            w2=Array(Matrix{Float64},length(v))
+            w1=Array(Matrix{Complex128},length(v))
+            w2=Array(Matrix{Complex128},length(v))
             for k=1:length(v)
                 w1[k]=v[k][1:m,1:m]
                 w2[k]=v[k][m+1:end,m+1:end]
@@ -72,7 +72,7 @@ function deflateblock(v)
     end
 
     # no subblocks
-    v,Array(Matrix{Float64},0)
+    v,Array(Matrix{Complex128},0)
 end
 
 function deflate(v)
@@ -80,7 +80,7 @@ function deflate(v)
         return v
     end
 
-    ret=Array(Vector{Matrix{Float64}},size(v[1],1))
+    ret=Array(Vector{Matrix{Complex128}},size(v[1],1))
 
     for n=1:size(v[1],1)
         w1,v=deflateblock(v)
@@ -95,21 +95,24 @@ end
 
 
 function nullQ(w,μ)
+#    @assert imag(μ)<1000000eps()
+
     Q1=null(w-μ*I)
     Q2=null(Q1')
     Q=[Q1 Q2]
+    Q
 end
-nullQ(M)=nullQ(M,int(eigvals(M)[rand(1:size(M,1))]))
+nullQ(M)=nullQ(M,eigvals(M)|>first)
 
 
 # returns Q
-function simdiagonalize(v::Vector{Matrix{Float64}})
+function simdiagonalize{T}(v::Vector{Matrix{T}})
     if size(v[1],1)==1
         return eye(1)
     end
 
     for k=1:length(v)
-        if slnorm(v[k],size(v[k],2),1:size(v[k],1)-1)>100eps()
+        if slnorm(v[k],2:size(v[k],1),1)>100000eps()
             Q=nullQ(v[k])
             df=deflate(map(v->Q'*v*Q,v))
             if length(df)>1
@@ -126,12 +129,12 @@ end
 
 # a list of each blocks
 # returns Q
-function simdiagonalize(v::Vector{Vector{Matrix{Float64}}})
+function simdiagonalize{T}(v::Vector{Vector{Matrix{T}}})
     d=mapreduce(vk->size(vk[1],1),+,v)
-    Q=zeros(d,d)
+    Q=zeros(Complex{Float64},d,d)
     m=1
-    for vk in v
-        Qk=simdiagonalize(vk)
+    for j= 1:length(v)
+        Qk=simdiagonalize(v[j])
         dk=size(Qk,1)
         Q[m:m+dk-1,m:m+dk-1]=Qk
         m+=dk
