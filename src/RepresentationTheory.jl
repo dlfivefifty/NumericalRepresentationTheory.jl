@@ -3,7 +3,7 @@ using Base, Compose
 
 ## Kronecker product of Sn
 
-export perm,permkronpow,permmults,topart,plotmults
+export perm,permkronpow,permmults,topart,plotmults,irrepgenerators
 
 function perm(a,b,n)
     ret=eye(n)
@@ -240,14 +240,16 @@ end
 
 
 function plotmults(dict::Dict)
-    cnt=compose(context());m=length(dict);k=0
+    cnt=compose(context());k=0
     kys=keys(dict)
     ml=mapreduce(length,max,kys)
     nl=mapreduce(first,max,kys)
     ε=0.05
+    m=ceil(Integer,sqrt(length(kys)))
     for ky in kys
-        compose!(cnt,(context(k/m+ε/m,0,first(ky)/(nl*m)-ε/m,0.5*length(ky)/(nl*ml)),plotpart(ky)),
-                 (context(),text(k/m*(1+ε)+0.2/m,(0.6+1/ml)/nl,string(dict[ky])),fontsize(4)))
+        j,i=div(k,m),mod(k,m)
+        compose!(cnt,(context(i/m+ε/m,j/m,first(ky)/(nl*m)-ε/m,0.5*length(ky)/(nl*ml)),RepresentationTheory.plotpart(ky)),
+                 (context(),text(i/m*(1+ε)+0.2/m,j/m+(0.6+1/ml)/nl,string(dict[ky])),fontsize(4)))
         k+=1
     end
     cnt
@@ -260,6 +262,16 @@ function plotmults(perm...)
 end
 
 
+
+function irrepgenerators(part)
+    run(`/Applications/sage/sage /Users/solver/.julia/v0.3/RepresentationTheory/exportgenerators.py $part`)
+    n=sum(part)
+    ret=Array(Matrix{Float64},n-1)
+    for k=1:n-1
+       ret[k]=readcsv("/tmp/gen"*string(k)*".csv")
+    end
+    ret
+end
 
 end #module
 
