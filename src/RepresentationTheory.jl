@@ -3,7 +3,7 @@ using Base, Compose
 
 ## Kronecker product of Sn
 
-export perm,permkronpow,permmults,topart,plotmults,irrepgenerators
+export perm,permkronpow,permmults,topart,plotmults,irrepgenerators,standardgenerators
 
 function perm(a,b,n)
     ret=eye(n)
@@ -11,6 +11,9 @@ function perm(a,b,n)
     ret[a,b]=ret[b,a]=1
     ret
 end
+
+standardgenerators(n)=Matrix{Float64}[perm(k,k+1,n) for k=1:n-1]
+
 
 function kronpow(p,m)
     ret=p
@@ -176,7 +179,7 @@ end
 
 function permmults(perm...)
     Q,v=reducesn(perm...)
-    int(hcat(map(v->diag(Q'*v*Q),v)...))
+    map(x->round(Int,real(x)),hcat(map(v->diag(Q'*v*Q),v)...))
 end
 
 
@@ -274,5 +277,3 @@ function irrepgenerators(part)
 end
 
 end #module
-
-
