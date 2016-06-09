@@ -267,7 +267,7 @@ end
 
 
 function irrepgenerators(part)
-    run(`/Applications/sage/sage /Users/solver/.julia/v0.3/RepresentationTheory/exportgenerators.py $part`)
+    run(`/Applications/SageMath/sage $(Pkg.dir())/RepresentationTheory/exportgenerators.py $part`)
     n=sum(part)
     ret=Array(Matrix{Float64},n-1)
     for k=1:n-1
