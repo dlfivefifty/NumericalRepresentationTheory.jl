@@ -1,18 +1,20 @@
 module RepresentationTheory
-using Base, Compose
-
+using Base, Compose, Compat
+import Base: ctranspose, transpose, getindex, size, setindex!, maximum, Int, length,
+                ==, isless, copy
 ## Kronecker product of Sn
 
-export perm,permkronpow,permmults,topart,plotmults,irrepgenerators,standardgenerators
+export perm, permkronpow, permmults, topart, plotmults,
+    irrepgenerators, standardgenerators, Partition, YoungMatrix
 
 function perm(a,b,n)
-    ret=eye(n)
-    ret[a,a]=ret[b,b]=0
-    ret[a,b]=ret[b,a]=1
+    ret = eye(n)
+    ret[a,a] = ret[b,b] = 0
+    ret[a,b] = ret[b,a] = 1
     ret
 end
 
-standardgenerators(n)=Matrix{Float64}[perm(k,k+1,n) for k=1:n-1]
+standardgenerators(n) = Matrix{Float64}[perm(k,k+1,n) for k=1:n-1]
 
 
 function kronpow(p,m)
@@ -23,7 +25,7 @@ function kronpow(p,m)
     ret
 end
 
-permkronpow(m)=(a,b,n)->kronpow(perm(a,b,n),m)
+permkronpow(m) = (a,b,n)->kronpow(perm(a,b,n),m)
 
 ## Algorithm
 
@@ -32,7 +34,7 @@ function wilkshift(A)
         A[1,1]
     else
         a1,a,b=A[end-1,end-1],A[end,end],A[end-1,end]
-        if a1==a==b==0
+        if a1 == a == b == 0
             0.0
         else
             δ=(a1-a)/2
@@ -64,18 +66,18 @@ function deflateblock(v)
         end
 
         if allzero
-            w1=Array(Matrix{Complex128},length(v))
-            w2=Array(Matrix{Complex128},length(v))
-            for k=1:length(v)
-                w1[k]=v[k][1:m,1:m]
-                w2[k]=v[k][m+1:end,m+1:end]
+            w1 = Vector{Matrix{Complex128}}(length(v))
+            w2 = Vector{Matrix{Complex128}}(length(v))
+            for k = 1:length(v)
+                w1[k] = v[k][1:m,1:m]
+                w2[k] = v[k][m+1:end,m+1:end]
             end
             return w1,w2
         end
     end
 
     # no subblocks
-    v,Array(Matrix{Complex128},0)
+    v,Vector{Matrix{Complex128}}(0)
 end
 
 function deflate(v)
@@ -83,7 +85,7 @@ function deflate(v)
         return v
     end
 
-    ret=Array(Vector{Matrix{Complex128}},size(v[1],1))
+    ret=Vector{Vector{Matrix{Complex128}}}(size(v[1],1))
 
     for n=1:size(v[1],1)
         w1,v=deflateblock(v)
@@ -155,7 +157,7 @@ end
 
 function gelfandbasis(gen)
     n=length(gen)+1
-    w=Array(Array{Float64,2},n-1)
+    w=Vector{Matrix{Float64}}(n-1)
     for k=1:n-1
         a=gen[k]
         w[k]=a
@@ -216,7 +218,7 @@ function topart(part::Vector)
 end
 
 function topart(m::Matrix)
-    ret=Array(Vector{Int64},size(m,1))
+    ret=Vector{Vector{Int64}}(size(m,1))
     for k=1:size(m,1)
         ret[k]=topart([0;vec(m[k,:])])
     end
@@ -267,13 +269,128 @@ end
 
 
 function irrepgenerators(part)
-    run(`/Applications/SageMath/sage $(Pkg.dir())/RepresentationTheory/exportgenerators.py $part`)
+    run(`/Applications/SageMath-8.1.app/sage $(Pkg.dir())/RepresentationTheory/exportgenerators.py $part`)
     n=sum(part)
-    ret=Array(Matrix{Float64},n-1)
+    ret=Array{Matrix{Float64}}(n-1)
     for k=1:n-1
        ret[k]=readcsv("/tmp/gen"*string(k)*".csv")
     end
     ret
 end
+
+function hooklength(σ)
+    ret = 1
+    m = length(σ)
+    for k = 1:m, j=1:σ[k]
+        ret_2 = 0
+        ret_2 += σ[k]-j
+        for p = k:m
+            σ[p] < j && break
+            ret_2 += 1
+        end
+        ret *= ret_2
+    end
+    factorial(sum(σ)) ÷ ret
+end
+
+
+struct Partition
+    σ::Vector{Int}
+    function Partition(σ)
+        @assert issorted(σ; lt=Base.:>)
+        @assert all(x -> x > 0, σ)
+        new(σ)
+    end
+end
+
+
+function isless(a::Partition, b::Partition)
+    n,m = Int(a), Int(b)
+    n < m && return true
+    if n == m
+        for k = 1:min(length(a.σ), length(b.σ))
+            a.σ[k] > b.σ[k] && return true
+            a.σ[k] < b.σ[k] && return false
+        end
+    end
+
+    return false
+end
+Base.:(==)(a::Partition, b::Partition) = a.σ == b.σ
+
+copy(a::Partition) = Partition(copy(a.σ))
+
+function transpose(σ::Partition)
+    cols = Vector{Int}(uninitialized, maximum(σ))
+    j_end = 1
+    for k = length(σ):-1:1
+        for j = j_end:σ[k]
+            cols[j] = k
+        end
+        j_end = σ[k]+1
+    end
+    Partition(cols)
+end
+ctranspose(σ::Partition) = transpose(σ)
+getindex(σ::Partition, k::Int) = σ.σ[k]
+for op in (:maximum, :length)
+    @eval $op(σ::Partition) = $op(σ.σ)
+end
+
+Int(σ::Partition) = sum(σ.σ)
+
+function partitions(N)
+    N == 1 && return [Partition([1])]
+    ret = Partition[]
+    part = partitions(N-1)
+    for p in part
+        if (length(p.σ) < 2 || p.σ[end-1] > p.σ[end])
+            p_new = copy(p)
+            p_new.σ[end] += 1
+            push!(ret, p_new)
+        end
+
+        push!(ret, Partition([p.σ ; 1]))
+    end
+    ret
+end
+
+
+
+struct YoungMatrix <: AbstractMatrix{Int}
+    data::Matrix{Int}
+    rows::Partition
+    columns::Partition
+
+    function YoungMatrix(data, rows, columns)
+        @assert size(data) == (length(rows), length(columns))
+        @assert rows == columns'
+        new(data, rows, columns)
+    end
+end
+
+YoungMatrix(data::Matrix{Int}, σ::Partition) = YoungMatrix(data, σ, σ')
+YoungMatrix(::Uninitialized, σ::Partition) = YoungMatrix(Matrix{Int}(uninitialized, length(σ), maximum(σ)), σ)
+
+YoungMatrix(::Uninitialized, σ::Vector{Int}) = YoungMatrix(uninitialized, Partition(σ))
+
+size(Y::YoungMatrix) = size(Y.data)
+getindex(Y::YoungMatrix, k::Int, j::Int) = ifelse(k ≤ Y.columns[j] && j ≤ Y.rows[k], Y.data[k,j], 0)
+function setindex!(Y::YoungMatrix, v, k::Int, j::Int)
+    @assert k ≤ Y.columns[j] && j ≤ Y.rows[k]
+    Y.data[k,j] = v
+end
+
+
+
+
+
+#
+# struct YoungTableaux{N}
+#     σ::NTuple{N,Int}
+#     entries::RaggedMatrix{Int}
+# end
+
+
 
 end #module
