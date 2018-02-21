@@ -5,7 +5,7 @@ import Base: ctranspose, transpose, getindex, size, setindex!, maximum, Int, len
 ## Kronecker product of Sn
 
 export perm, permkronpow, permmults, topart, plotmults,
-    irrepgenerators, standardgenerators, Partition, YoungMatrix
+    irrepgenerators, standardgenerators, Partition, YoungMatrix, partitions
 
 function perm(a,b,n)
     ret = eye(n)
@@ -333,6 +333,7 @@ function transpose(σ::Partition)
 end
 ctranspose(σ::Partition) = transpose(σ)
 getindex(σ::Partition, k::Int) = σ.σ[k]
+setindex!(σ::Partition, v, k::Int) = setindex!(σ.σ, v, k)
 for op in (:maximum, :length)
     @eval $op(σ::Partition) = $op(σ.σ)
 end
@@ -372,7 +373,7 @@ end
 YoungMatrix(data::Matrix{Int}, σ::Partition) = YoungMatrix(data, σ, σ')
 YoungMatrix(::Uninitialized, σ::Partition) = YoungMatrix(Matrix{Int}(uninitialized, length(σ), maximum(σ)), σ)
 
-YoungMatrix(::Uninitialized, σ::Vector{Int}) = YoungMatrix(uninitialized, Partition(σ))
+YoungMatrix(dat, σ::Vector{Int}) = YoungMatrix(dat, Partition(σ))
 
 size(Y::YoungMatrix) = size(Y.data)
 getindex(Y::YoungMatrix, k::Int, j::Int) = ifelse(k ≤ Y.columns[j] && j ≤ Y.rows[k], Y.data[k,j], 0)
