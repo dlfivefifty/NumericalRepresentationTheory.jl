@@ -5,7 +5,8 @@ import Base: ctranspose, transpose, getindex, size, setindex!, maximum, Int, len
 ## Kronecker product of Sn
 
 export perm, permkronpow, permmults, topart, plotmults,
-    irrepgenerators, standardgenerators, Partition, YoungMatrix, partitions
+    irrepgenerators, standardgenerators, Partition, YoungMatrix, partitions,
+    youngtableaux, YoungTableau
 
 function perm(a,b,n)
     ret = eye(n)
@@ -278,20 +279,6 @@ function irrepgenerators(part)
     ret
 end
 
-function hooklength(σ)
-    ret = 1
-    m = length(σ)
-    for k = 1:m, j=1:σ[k]
-        ret_2 = 0
-        ret_2 += σ[k]-j
-        for p = k:m
-            σ[p] < j && break
-            ret_2 += 1
-        end
-        ret *= ret_2
-    end
-    factorial(sum(σ)) ÷ ret
-end
 
 
 struct Partition
@@ -384,13 +371,83 @@ end
 
 
 
+struct YoungTableau
+	partitions::Vector{Partition}
+end
+
+function YoungMatrix(Yt::YoungTableau)
+	ps = Yt.partitions
+
+	Y = YoungMatrix(uninitialized, ps[end])
+	Y[1,1] = 1
+
+	for k=2:length(ps)
+		if length(ps[k]) > length(ps[k-1])
+			Y[length(ps[k]),1] = k
+		else
+			for j = 1:length(ps[k])
+				if ps[k][j] > ps[k-1][j]
+					Y[j,ps[k][j]] = k
+					break
+				end
+			end
+		end
+	end
+	Y
+end
+
+function lowerpartitions(σ)
+	p = Partition[]
+	n = length(σ)
+
+	if σ[n] > 1
+		p_new = copy(σ)
+		p_new[n] -= 1
+		push!(p, p_new)
+	else
+		push!(p, Partition(σ.σ[1:n-1]))
+	end
+
+	for k = n-1:-1:1
+		if σ[k] > σ[k+1]
+			p_new = copy(σ)
+			p_new[k] -= 1
+		 	push!(p, p_new)
+		end
+	end
+
+	p
+end
 
 
+function youngtableaux(σ::Partition)
+	σ == Partition([1]) && return [YoungTableau([σ])]
+	Yts = mapreduce(youngtableaux, vcat, lowerpartitions(σ))
+	map(Yt -> YoungTableau([Yt.partitions; σ]), Yts)
+end
+
+
+# function isyoungtableau(Y::YoungMatrix)
+#     Y[1,1] == 1 || return false
+#     for j=1:length(Y.cols), k=1:Y.cols[j]
 #
-# struct YoungTableaux{N}
-#     σ::NTuple{N,Int}
-#     entries::RaggedMatrix{Int}
 # end
+
+function hooklength(σ::Partition)
+    ret = 1
+    m = length(σ)
+    for k = 1:m, j=1:σ[k]
+        ret_2 = 0
+        ret_2 += σ[k]-j
+        for p = k:m
+            σ[p] < j && break
+            ret_2 += 1
+        end
+        ret *= ret_2
+    end
+    factorial(Int(σ)) ÷ ret
+end
+
 
 
 
