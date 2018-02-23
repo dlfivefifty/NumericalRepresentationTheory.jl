@@ -269,15 +269,17 @@ end
 
 
 
-function irrepgenerators(part)
-    run(`/Applications/SageMath-8.1.app/sage $(Pkg.dir())/RepresentationTheory/exportgenerators.py $part`)
-    n=sum(part)
-    ret=Array{Matrix{Float64}}(n-1)
-    for k=1:n-1
-       ret[k]=readcsv("/tmp/gen"*string(k)*".csv")
-    end
-    ret
-end
+# function irrepgenerators(part)
+#     run(`/Applications/SageMath-8.1.app/sage $(Pkg.dir())/RepresentationTheory/exportgenerators.py $part`)
+#     n=sum(part)
+#     ret=Array{Matrix{Float64}}(n-1)
+#     for k=1:n-1
+#        ret[k]=readcsv("/tmp/gen"*string(k)*".csv")
+#     end
+#     ret
+# end
+
+
 
 
 
@@ -361,6 +363,8 @@ YoungMatrix(data::Matrix{Int}, σ::Partition) = YoungMatrix(data, σ, σ')
 YoungMatrix(::Uninitialized, σ::Partition) = YoungMatrix(Matrix{Int}(uninitialized, length(σ), maximum(σ)), σ)
 
 YoungMatrix(dat, σ::Vector{Int}) = YoungMatrix(dat, Partition(σ))
+
+copy(Y::YoungMatrix) = YoungMatrix(copy(Y.data), Y.rows, Y.columns)
 
 size(Y::YoungMatrix) = size(Y.data)
 getindex(Y::YoungMatrix, k::Int, j::Int) = ifelse(k ≤ Y.columns[j] && j ≤ Y.rows[k], Y.data[k,j], 0)
@@ -449,6 +453,42 @@ function hooklength(σ::Partition)
 end
 
 
+
+function irrepgenerator(σ::Partition, i::Int)
+    Is = Int[]; Js = Int[]; Vs = Float64[]
+    t = YoungMatrix.(youngtableaux(σ))
+    d = length(t)
+
+    for j = 1:d
+        Y = t[j]
+        ii = Base._to_subscript_indices(Y, findfirst(Y, i))
+        ip = Base._to_subscript_indices(Y, findfirst(Y, i+1))
+
+        if ii[1] == ip[1]
+            push!(Is, j)
+            push!(Js, j)
+            push!(Vs, 1)
+        elseif ii[2] == ip[2]
+            push!(Is, j)
+            push!(Js, j)
+            push!(Vs, -1)
+        else
+            ai = ii[2]-ii[1]
+            ap = ip[2]-ip[1]
+            r = ap - ai
+            Yt = copy(Y) # Tableau with swapped indices
+            Yt[ii...], Yt[ip...] = (Yt[ip...], Yt[ii...])
+            k = findfirst(t, Yt)
+            # set entries to matrix [1/r sqrt(1-1/r^2); sqrt(1-1/r^2) -1/r]
+            push!(Is, j, j)
+            push!(Js, j, k)
+            push!(Vs, 1/r, sqrt(1-1/r^2))
+        end
+    end
+    sparse(Is, Js, Vs)
+end
+
+irrepgenerators(σ::Partition) = [irrepgenerator(σ, i) for i=1:Int(σ)-1]
 
 
 end #module
