@@ -8,22 +8,14 @@ import Base: ctranspose, transpose, getindex, size, setindex!, maximum, Int, len
 
 export perm, permkronpow, permmults, topart, plotmults,
     standardgenerators, Partition, YoungMatrix, partitions,
-    youngtableaux, YoungTableau, ⊗, Representation, multiplicities
+    youngtableaux, YoungTableau, ⊗, ⊕, Representation, multiplicities, generators
 
-function perm(a,b,n)
-    ret = eye(n)
-    ret[a,a] = ret[b,b] = 0
-    ret[a,b] = ret[b,a] = 1
-    ret
-end
-
-standardgenerators(n) = Matrix{Float64}[perm(k,k+1,n) for k=1:n-1]
 
 
 function kronpow(p,m)
-    ret=p
+    ret = p
     for k=1:m-1
-        ret=kron(ret,p)
+        ret = kron(ret,p)
     end
     ret
 end
@@ -263,6 +255,13 @@ Representation(σ::Partition) = Representation(irrepgenerators(σ))
 kron(A::Representation, B::Representation) = Representation(kron.(A.generators, B.generators))
 ⊗(A::Representation, B::Representation) = kron(A, B)
 
+generators(R::Representation) = R.generators
+size(R::Representation, k) = size(R.generators[1], k)
+size(R::Representation) = size(R.generators[1])
+
+diagm(A::Vector{<:Representation}) = Representation(blkdiag.(generators.(A)...))
+⊕(A::Representation...) = Representation(blkdiag.(generators.(A)...))
+
 
 # determine multiplicities of eigs on diagonal, assuming sorted
 function eigmults(λ::Vector{Int})
@@ -358,6 +357,19 @@ end
 
 multiplicities(R::Representation) = multiplicities(topart(gelfand_reduce(R)[1]))
 
+
+
+## Representations
+
+
+function perm(a,b,n)
+    ret = eye(n)
+    ret[a,a] = ret[b,b] = 0
+    ret[a,b] = ret[b,a] = 1
+    ret
+end
+
+standardrepresentation(n) = Representation(Matrix{Float64}[perm(k,k+1,n) for k=1:n-1])
 
 
 ## Plotting
