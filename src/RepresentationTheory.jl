@@ -1,5 +1,5 @@
 module RepresentationTheory
-using Base, Compose, Compat
+using Base, Compose, Compat, Permutations
 import Base: ctranspose, transpose, getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, eig, hash, first
 ## Kronecker product of Sn
@@ -262,6 +262,9 @@ size(R::Representation) = size(R.generators[1])
 diagm(A::Vector{<:Representation}) = Representation(blkdiag.(generators.(A)...))
 ⊕(A::Representation...) = Representation(blkdiag.(generators.(A)...))
 
+
+(R::Representation)(P::Permutation) =
+    *(map(k -> R.generators[k], Permutations._decompose!(Permutation(copy(P.data))))...)
 
 # determine multiplicities of eigs on diagonal, assuming sorted
 function eigmults(λ::Vector{Int})
