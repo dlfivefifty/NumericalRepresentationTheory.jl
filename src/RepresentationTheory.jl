@@ -24,14 +24,14 @@ permkronpow(m) = (a,b,n)->kronpow(perm(a,b,n),m)
 
 ## Algorithm
 function gelfandbasis(gen::Vector{MT}) where MT
-    n=length(gen)+1
-    w=Vector{MT}(n-1)
-    for k=1:n-1
-        a=gen[k]
-        w[k]=a
-        for j=k-1:-1:1
-            a=gen[j]*a*gen[j]
-            w[k]+=a
+    n = length(gen)+1
+    w = Vector{MT}(n-1)
+    for k = 1:n-1
+        a = gen[k]
+        w[k] = a
+        for j = k-1:-1:1
+            a = gen[j]*a*gen[j]
+            w[k] += a
         end
     end
     w
@@ -263,8 +263,7 @@ diagm(A::Vector{<:Representation}) = Representation(blkdiag.(generators.(A)...))
 ⊕(A::Representation...) = Representation(blkdiag.(generators.(A)...))
 
 
-(R::Representation)(P::Permutation) =
-    *(map(k -> R.generators[k], Permutations._decompose!(Permutation(copy(P.data))))...)
+(R::Representation)(P::Permutation) = *(map(sᵢ -> R.generators[sᵢ.i], CoxeterDecomposition(P))...)
 
 # determine multiplicities of eigs on diagonal, assuming sorted
 function eigmults(λ::Vector{Int})
