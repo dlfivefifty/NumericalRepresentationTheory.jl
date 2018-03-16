@@ -1,17 +1,17 @@
 module RepresentationTheory
-using Base, Compose, Compat, Permutations
+using Base, Compat, Permutations, RecipesBase, Plots
 import Base: ctranspose, transpose, getindex, size, setindex!, maximum, Int, length,
-                ==, isless, copy, kron, eig, hash, first
+                ==, isless, copy, kron, eig, hash, first, show, endof
+import RecipesBase: plot
 ## Kronecker product of Sn
 
 
 
-export perm, permkronpow, permmults, topart, plotmults,
-    standardgenerators, Partition, YoungMatrix, partitions,
-    youngtableaux, YoungTableau, ⊗, ⊕, Representation, multiplicities, generators
+export Partition, YoungMatrix, partitions, youngtableaux, YoungTableau, ⊗, ⊕,
+        Representation, multiplicities, generators, standardrepresentation
 
 
-
+# utility function
 function kronpow(p,m)
     ret = p
     for k=1:m-1
@@ -20,22 +20,6 @@ function kronpow(p,m)
     ret
 end
 
-permkronpow(m) = (a,b,n)->kronpow(perm(a,b,n),m)
-
-## Algorithm
-function gelfandbasis(gen::Vector{MT}) where MT
-    n = length(gen)+1
-    w = Vector{MT}(n-1)
-    for k = 1:n-1
-        a = gen[k]
-        w[k] = a
-        for j = k-1:-1:1
-            a = gen[j]*a*gen[j]
-            w[k] += a
-        end
-    end
-    w
-end
 
 struct Partition
     σ::Vector{Int}
@@ -45,7 +29,6 @@ struct Partition
         new(σ)
     end
 end
-
 
 function isless(a::Partition, b::Partition)
     n,m = Int(a), Int(b)
@@ -63,6 +46,16 @@ end
 hash(a::Partition) = hash(a.σ)
 
 copy(a::Partition) = Partition(copy(a.σ))
+
+endof(a::Partition) = endof(a.σ)
+
+function show(io::IO, σ::Partition)
+    print(io, "$(Int(σ)) = ")
+    for k = 1:length(σ)-1
+        print(io, "$(σ[k]) + ")
+    end
+    print(io, "$(σ[end])")
+end
 
 function transpose(σ::Partition)
     cols = Vector{Int}(uninitialized, maximum(σ))
@@ -263,7 +256,8 @@ diagm(A::Vector{<:Representation}) = Representation(blkdiag.(generators.(A)...))
 ⊕(A::Representation...) = Representation(blkdiag.(generators.(A)...))
 
 
-(R::Representation)(P::Permutation) = *(map(sᵢ -> R.generators[sᵢ.i], CoxeterDecomposition(P))...)
+(R::Representation)(P::Permutation) =
+    *(map(i -> R.generators[i], CoxeterDecomposition(P).terms)...)
 
 # determine multiplicities of eigs on diagonal, assuming sorted
 function eigmults(λ::Vector{Int})
@@ -280,6 +274,21 @@ function eigmults(λ::Vector{Int})
        end
        push!(mults, c)
        mults
+end
+
+
+function gelfandbasis(gen::Vector{MT}) where MT
+    n = length(gen)+1
+    w = Vector{MT}(n-1)
+    for k = 1:n-1
+        a = gen[k]
+        w[k] = a
+        for j = k-1:-1:1
+            a = gen[j]*a*gen[j]
+            w[k] += a
+        end
+    end
+    w
 end
 
 gelfand_reduce(R::Representation) = gelfand_reduce(Matrix.(gelfandbasis(R.generators)))
@@ -308,7 +317,7 @@ function gelfand_reduce(X)
        Λ, Q₁*Q
 end
 
-function topart(part::Vector)
+function contents2partition(part::Vector)
     part=sort(part)
     p=zeros(Int64,1-first(part))
     k=1
@@ -317,7 +326,7 @@ function topart(part::Vector)
         rk=pk<0?1-pk:1
         p[rk]+=1
         k+=1
-        while k≤length(part)&&part[k]==pk
+        while k≤length(part) && part[k] == pk
             k+=1
             rk+=1
             p[rk]+=1
@@ -326,10 +335,10 @@ function topart(part::Vector)
     Partition(p)
 end
 
-function topart(m::Matrix{Int})
+function contents2partition(m::Matrix{Int})
     ret = Vector{Partition}(size(m,1))
     for k=1:size(m,1)
-        ret[k] = topart([0;vec(m[k,:])])
+        ret[k] = contents2partition([0;vec(m[k,:])])
     end
     ret
 end
@@ -357,7 +366,7 @@ function multiplicities(Λ::Vector{Partition})
     mults
 end
 
-multiplicities(R::Representation) = multiplicities(topart(gelfand_reduce(R)[1]))
+multiplicities(R::Representation) = multiplicities(contents2partition(gelfand_reduce(R)[1]))
 
 
 
@@ -376,38 +385,29 @@ standardrepresentation(n) = Representation(Matrix{Float64}[perm(k,k+1,n) for k=1
 
 ## Plotting
 
-function plotpart(part::Partition)
-    ε=0.01
-    x,y=part[1],length(part)
-    box(ε,k,j,x,y)=rectangle((k-1)/x+ε,(j-1)/y+ε,1/x-ε,1/y-ε)
-    cnt=compose(context())
+@recipe function f(σ::Partition)
+    legend --> false
+    ratio --> 1.0
+    axis --> false
+    grid --> false
 
-    for k=1:length(part),j=1:part[k]
-        cnt=compose(cnt,box(ε,j,k,x,y))
+    ret = Shape[]
+    m = length(σ)
+    for j = 1:m, k = 1:σ[j]
+        push!(ret, Shape([k-1,k-1,k,k],[1-j,-j,-j,1-j]))
     end
-
-    compose(cnt,fill("tomato"),stroke("black"))
+    ret
 end
 
 
-
-function plotmults(dict::Dict)
-    cnt = compose(context());k=0
-    kys = keys(dict)
-    ml = mapreduce(length,max,kys)
-    nl = mapreduce(first,max,kys)
-    ε=0.05
-    m=ceil(Integer,sqrt(length(kys)))
-    for ky in kys
-        j,i=div(k,m),mod(k,m)
-        compose!(cnt,(context(i/m+ε/m,j/m,first(ky)/(nl*m)-ε/m,0.5*length(ky)/(nl*ml)),RepresentationTheory.plotpart(ky)),
-                 (context(),text(i/m*(1+ε)+0.2/m,j/m+(0.6+1/ml)/nl,string(dict[ky])),fontsize(4)))
-        k+=1
+function plot(mults::Dict{Partition,<:Integer}; kwds...)
+    ret = Any[]
+    M = mapreduce(maximum, max, keys(mults))
+    N = mapreduce(length, max, keys(mults))
+    for (σ,m) in mults
+        push!(ret, plot(σ; title="$m", xlims=(0,M), ylims=(-N,0)))
     end
-    cnt
+    plot(ret...; kwds...)
 end
-
-
-plotmults(R::Representation) = plotmults(multiplicities(R))
 
 end #module
