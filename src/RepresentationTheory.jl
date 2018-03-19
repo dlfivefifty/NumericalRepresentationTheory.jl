@@ -3,6 +3,7 @@ using Base, Compat, Permutations, RecipesBase, Plots
 import Base: ctranspose, transpose, getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, eig, hash, first, show, endof
 import RecipesBase: plot
+import Permutations: AbstractPermutation
 ## Kronecker product of Sn
 
 
@@ -256,7 +257,7 @@ diagm(A::Vector{<:Representation}) = Representation(blkdiag.(generators.(A)...))
 ⊕(A::Representation...) = Representation(blkdiag.(generators.(A)...))
 
 
-(R::Representation)(P::Permutation) =
+(R::Representation)(P::AbstractPermutation) =
     *(map(i -> R.generators[i], CoxeterDecomposition(P).terms)...)
 
 # determine multiplicities of eigs on diagonal, assuming sorted
