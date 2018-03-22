@@ -4,7 +4,7 @@ A Julia package for representation theory of the symmetric group
 
 
 
-This package supports basic representation theory of the symmetric group. One can form irreducible representations (irreps) by specifying the corresponding permutation, combine representations via direct sum and Kronecker product, and also calculate the resulting irrep multipliciplities. For example, the following code calculates the Kronecker coefficients of two irreps of S₇, given by the partitions `3+3+1` and `2+2+2+1`:
+This package supports basic representation theory of the symmetric group. One can form irreducible representations (irreps) by specifying the corresponding permutation, combine representations via direct sum and Kronecker product, and also calculate the resulting irrep multipliciplities. For example, the following code calculates the Kronecker coefficients of two irreps of S₇, specified by the partitions `5+1+1` and `2+2+2+1`:
 ```julia
 julia> using RepresentationTheory, Permutations, Plots
 
