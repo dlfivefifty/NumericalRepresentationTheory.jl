@@ -1,7 +1,7 @@
 module RepresentationTheory
 using Base, Compat, Permutations, RecipesBase, Plots
 import Base: ctranspose, transpose, getindex, size, setindex!, maximum, Int, length,
-                ==, isless, copy, kron, eig, hash, first, show, endof
+                ==, isless, copy, kron, eig, hash, first, show, endof, |, Integer, BigInt
 import RecipesBase: plot
 import Permutations: AbstractPermutation
 ## Kronecker product of Sn
@@ -9,7 +9,8 @@ import Permutations: AbstractPermutation
 
 
 export Partition, YoungMatrix, partitions, youngtableaux, YoungTableau, ⊗, ⊕,
-        Representation, multiplicities, generators, standardrepresentation
+        Representation, multiplicities, generators, standardrepresentation, randpartition,
+        blkdiagonalize
 
 
 # utility function
@@ -77,6 +78,9 @@ for op in (:maximum, :length, :first)
 end
 
 Int(σ::Partition) = sum(σ.σ)
+BigInt(σ::Partition) = BigInt(Int(σ))
+Integer(σ::Partition) = Int(σ)
+
 
 function partitions(N)
     N == 1 && return [Partition([1])]
@@ -187,7 +191,7 @@ end
 # end
 
 function hooklength(σ::Partition)
-    ret = 1
+    ret = BigInt(1)
     m = length(σ)
     for k = 1:m, j=1:σ[k]
         ret_2 = 0
@@ -198,10 +202,22 @@ function hooklength(σ::Partition)
         end
         ret *= ret_2
     end
-    factorial(Int(σ)) ÷ ret
+    factorial(BigInt(σ)) ÷ ret
 end
 
+# sample by Plancherel
+function randpartition(N, m)
+    Σ = partitions(N)
+    l = hooklength.(Σ)
 
+    cs = cumsum(l)
+
+    rs = rand(1:cs[end], m)
+    p = (r -> findfirst(k -> k ≥ r, cs)).(rs)
+    Σ[p]
+end
+
+randpartition(N) = randpartition(N, 1)[1]
 
 function irrepgenerator(σ::Partition, i::Int)
     Is = Int[]; Js = Int[]; Vs = Float64[]
@@ -248,6 +264,8 @@ end
 Representation(σ::Partition) = Representation(irrepgenerators(σ))
 kron(A::Representation, B::Representation) = Representation(kron.(A.generators, B.generators))
 ⊗(A::Representation, B::Representation) = kron(A, B)
+
+|(A::Representation, n::AbstractVector) = Representation(A.generators[n])
 
 generators(R::Representation) = R.generators
 size(R::Representation, k) = size(R.generators[1], k)
@@ -316,6 +334,11 @@ function gelfand_reduce(X)
        end
 
        Λ, Q₁*Q
+end
+
+function blkdiagonalize(R::Representation)
+    Q = gelfand_reduce(R)[2]
+    Representation(map(g -> Q'*g*Q, R.generators)), Q
 end
 
 function contents2partition(part::Vector)
