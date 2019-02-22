@@ -1,9 +1,12 @@
 module RepresentationTheory
-using Base, Compat, Permutations, RecipesBase, Plots
-import Base: ctranspose, transpose, getindex, size, setindex!, maximum, Int, length,
-                ==, isless, copy, kron, eig, hash, first, show, endof, |, Integer, BigInt
+using Base, LinearAlgebra, Permutations, RecipesBase, Plots, SparseArrays
+import Base: getindex, size, setindex!, maximum, Int, length,
+                ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
+
+
 import RecipesBase: plot
 import Permutations: AbstractPermutation
+import LinearAlgebra: adjoint, transpose, eigen
 ## Kronecker product of Sn
 
 
@@ -49,7 +52,7 @@ hash(a::Partition) = hash(a.σ)
 
 copy(a::Partition) = Partition(copy(a.σ))
 
-endof(a::Partition) = endof(a.σ)
+lastindex(a::Partition) = lastindex(a.σ)
 
 function show(io::IO, σ::Partition)
     print(io, "$(Int(σ)) = ")
@@ -60,7 +63,7 @@ function show(io::IO, σ::Partition)
 end
 
 function transpose(σ::Partition)
-    cols = Vector{Int}(uninitialized, maximum(σ))
+    cols = Vector{Int}(undef, maximum(σ))
     j_end = 1
     for k = length(σ):-1:1
         for j = j_end:σ[k]
@@ -70,7 +73,7 @@ function transpose(σ::Partition)
     end
     Partition(cols)
 end
-ctranspose(σ::Partition) = transpose(σ)
+adjoint(σ::Partition) = transpose(σ)
 getindex(σ::Partition, k::Int) = σ.σ[k]
 setindex!(σ::Partition, v, k::Int) = setindex!(σ.σ, v, k)
 for op in (:maximum, :length, :first)
@@ -113,7 +116,7 @@ struct YoungMatrix <: AbstractMatrix{Int}
 end
 
 YoungMatrix(data::Matrix{Int}, σ::Partition) = YoungMatrix(data, σ, σ')
-YoungMatrix(::Uninitialized, σ::Partition) = YoungMatrix(Matrix{Int}(uninitialized, length(σ), maximum(σ)), σ)
+YoungMatrix(::UndefInitializer, σ::Partition) = YoungMatrix(Matrix{Int}(undef, length(σ), maximum(σ)), σ)
 
 YoungMatrix(dat, σ::Vector{Int}) = YoungMatrix(dat, Partition(σ))
 
@@ -135,7 +138,7 @@ end
 function YoungMatrix(Yt::YoungTableau)
 	ps = Yt.partitions
 
-	Y = YoungMatrix(uninitialized, ps[end])
+	Y = YoungMatrix(undef, ps[end])
 	Y[1,1] = 1
 
 	for k=2:length(ps)
@@ -226,8 +229,8 @@ function irrepgenerator(σ::Partition, i::Int)
 
     for j = 1:d
         Y = t[j]
-        ii = Base._to_subscript_indices(Y, findfirst(Y, i))
-        ip = Base._to_subscript_indices(Y, findfirst(Y, i+1))
+        ii = Base._to_subscript_indices(Y, Tuple(findfirst(isequal(i), Y))...)
+        ip = Base._to_subscript_indices(Y, Tuple(findfirst(isequal(i+1), Y))...)
 
         if ii[1] == ip[1]
             push!(Is, j)
@@ -243,7 +246,7 @@ function irrepgenerator(σ::Partition, i::Int)
             r = ap - ai
             Yt = copy(Y) # Tableau with swapped indices
             Yt[ii...], Yt[ip...] = (Yt[ip...], Yt[ii...])
-            k = findfirst(t, Yt)
+            k = findfirst(isequal(Yt), t)
             # set entries to matrix [1/r sqrt(1-1/r^2); sqrt(1-1/r^2) -1/r]
             push!(Is, j, j)
             push!(Js, j, k)
@@ -280,7 +283,7 @@ diagm(A::Vector{<:Representation}) = Representation(blkdiag.(generators.(A)...))
 
 # determine multiplicities of eigs on diagonal, assuming sorted
 function eigmults(λ::Vector{Int})
-       mults = Vector{Int}(uninitialized)
+       mults = Vector{Int}()
        n = length(λ)
        tol = 0.01 # integer coefficents
        c = 1
@@ -298,7 +301,7 @@ end
 
 function gelfandbasis(gen::Vector{MT}) where MT
     n = length(gen)+1
-    w = Vector{MT}(n-1)
+    w = Vector{MT}(undef, n-1)
     for k = 1:n-1
         a = gen[k]
         w[k] = a
@@ -313,21 +316,21 @@ end
 gelfand_reduce(R::Representation) = gelfand_reduce(Matrix.(gelfandbasis(R.generators)))
 
 function gelfand_reduce(X)
-       λ̃, Q₁ = eig(Symmetric(X[1]))
+       λ̃, Q₁ = eigen(Symmetric(X[1]))
        λ = round.(Int, λ̃)
        length(X) == 1 && return reshape(λ,length(λ),1),Q₁
 
        m = eigmults(λ)
        c_m = [0;cumsum(m)]
 
-       Q = zeros(Q₁)
-       Λ = Matrix{Int}(uninitialized, length(λ), length(X))
+       Q = zero(Q₁)
+       Λ = Matrix{Int}(undef, length(λ), length(X))
        Λ[:,1] = λ
 
        for j=2:length(c_m)
               j_inds = c_m[j-1]+1:c_m[j]
               Qʲ = Q₁[:,j_inds] # deflated rows
-              Xⱼ = map(X -> ctranspose(Qʲ)*X*Qʲ, X[2:end])
+              Xⱼ = map(X -> adjoint(Qʲ)*X*Qʲ, X[2:end])
               Λⱼ, Qⱼ = gelfand_reduce(Xⱼ)
               Q[j_inds,j_inds] = Qⱼ
               Λ[j_inds,2:end] = Λⱼ
@@ -347,7 +350,7 @@ function contents2partition(part::Vector)
     k=1
     while k≤length(part)
         pk=part[k]
-        rk=pk<0?1-pk:1
+        rk=pk<0 ? 1-pk : 1
         p[rk]+=1
         k+=1
         while k≤length(part) && part[k] == pk
@@ -360,7 +363,7 @@ function contents2partition(part::Vector)
 end
 
 function contents2partition(m::Matrix{Int})
-    ret = Vector{Partition}(size(m,1))
+    ret = Vector{Partition}(undef, size(m,1))
     for k=1:size(m,1)
         ret[k] = contents2partition([0;vec(m[k,:])])
     end
