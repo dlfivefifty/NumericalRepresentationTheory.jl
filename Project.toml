@@ -1,0 +1,15 @@
+name = "RepresentationTheory"
+uuid = "6b7c1d51-ecee-4149-97a8-50646b514dce"
+authors = ["Sheehan Olver <solver@mac.com>"]
+version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Permutations = "2ae35dd2-176d-5d53-8349-f30d82d94d4f"
+RecipesBase = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+Permutations = "0.4"
+RecipesBase = "1"

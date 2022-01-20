@@ -1,5 +1,5 @@
 module RepresentationTheory
-using Base, LinearAlgebra, Permutations, RecipesBase, Plots, SparseArrays
+using Base, LinearAlgebra, Permutations, RecipesBase, SparseArrays
 import Base: getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
 
