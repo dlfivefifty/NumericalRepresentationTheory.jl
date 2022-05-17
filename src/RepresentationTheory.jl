@@ -401,7 +401,7 @@ multiplicities(R::Representation) = multiplicities(contents2partition(gelfand_re
 
 
 function perm(a,b,n)
-    ret = eye(n)
+    ret = Matrix(I,n,n)
     ret[a,a] = ret[b,b] = 0
     ret[a,b] = ret[b,a] = 1
     ret
