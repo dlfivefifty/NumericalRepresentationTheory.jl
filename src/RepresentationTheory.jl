@@ -1,5 +1,5 @@
 module RepresentationTheory
-using Base, LinearAlgebra, Permutations, RecipesBase, SparseArrays
+using Base, LinearAlgebra, Permutations, RecipesBase, Plots, SparseArrays
 import Base: getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
 
@@ -13,7 +13,7 @@ import LinearAlgebra: adjoint, transpose, eigen
 
 export Partition, YoungMatrix, partitions, youngtableaux, YoungTableau, ⊗, ⊕,
         Representation, multiplicities, generators, standardrepresentation, randpartition,
-        blkdiagonalize
+        blkdiagonalize, hooklength
 
 
 # utility function
@@ -417,6 +417,9 @@ standardrepresentation(n) = Representation(Matrix{Float64}[perm(k,k+1,n) for k=1
     ratio --> 1.0
     axis --> false
     grid --> false
+    color --> :orange
+    ticks --> false
+    linewidth --> 2
 
     ret = Shape[]
     m = length(σ)
