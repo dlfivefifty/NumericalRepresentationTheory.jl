@@ -21,27 +21,40 @@ R = ρ = Representation(Partition([3,2,1])) ⊗ Representation(Partition([2,2,2]
 multiplicities(ρ)
 
 Λ,Q = gelfand_reduce(R)
+
+Q̃ = similar(Q)
+
 c = contents2partition(Λ)
 
-pⱼ = partitions(6)[2]
-j = findall(isequal(pⱼ), c)
-Qⱼ = Q[:,j]
-ρⱼ = Representation(map(g -> Qⱼ'*g*Qⱼ, R.generators))
+k = 0
+for pⱼ in partitions(6)
+    j = findall(isequal(pⱼ), c)
+    if !isempty(j)
+        @show pⱼ
+        Qⱼ = Q[:,j]
+        ρⱼ = Representation(map(g -> Qⱼ'*g*Qⱼ, R.generators))
+        Q̃ⱼ = singlemultreduce(ρⱼ)
+        m = length(j)
+        Q̃[:,k+1:k+m] = Qⱼ * Q̃ⱼ
+        k += m
+    end
+end
+
+(Qⱼ * Q̃ⱼ)' * R.generators[4] * Qⱼ * Q̃ⱼ
 
 m = multiplicities(ρⱼ)
 
 function singlemultreduce(ρ)
     m = multiplicities(ρ)
     @assert length(m) == 1
-    singlemultreduce(ρ, first(m))
+    singlemultreduce(ρ, Representation(first(keys(m))))
 end
 
-function singlemultreduce(ρ, p)
-    σ = Representation(p)
+function singlemultreduce(ρ, σ)
     m = size(σ,1)
     n = size(ρ,1)
     A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
-    Q̃ = nullspace(A)*sqrt(m)
+    Q̃ = nullspace(convert(Matrix,A);atol=1E-10)*sqrt(m)
     reshape(vec(Q̃), n, n)
 end
     
