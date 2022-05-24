@@ -241,15 +241,15 @@ function irrepgenerator(σ::Partition, i::Int)
             push!(Js, j)
             push!(Vs, -1)
         else
-            ai = ii[2]-ii[1]
-            ap = ip[2]-ip[1]
-            r = ap - ai
             Yt = copy(Y) # Tableau with swapped indices
             Yt[ii...], Yt[ip...] = (Yt[ip...], Yt[ii...])
             k = findfirst(isequal(Yt), t)
             # set entries to matrix [1/r sqrt(1-1/r^2); sqrt(1-1/r^2) -1/r]
             push!(Is, j, j)
             push!(Js, j, k)
+            ai = ii[2]-ii[1]
+            ap = ip[2]-ip[1]
+            r = ap - ai
             push!(Vs, 1/r, sqrt(1-1/r^2))
         end
     end
@@ -340,7 +340,10 @@ function gelfand_reduce(X)
 end
 
 function blkdiagonalize(R::Representation)
-    Q = gelfand_reduce(R)[2]
+    Λ,Q = gelfand_reduce(R)
+    # place all representations together
+    σ  = sortperm(contents2partition(Λ))
+    Q = Q[:,σ]
     Representation(map(g -> Q'*g*Q, R.generators)), Q
 end
 

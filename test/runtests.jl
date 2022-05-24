@@ -13,7 +13,58 @@ s = standardrepresentation(3)
 @test multiplicities(ρ)[Partition([2,1])] == 3
 
 
+ρ = Representation(Partition([3,2,1])) ⊗ Representation(Partition([2,2,2]))
+@test multiplicities(ρ)[Partition([3,2,1])] == 2
 
+
+R = ρ = Representation(Partition([3,2,1])) ⊗ Representation(Partition([2,2,2])) ⊗ Representation(Partition([3,1,1,1]))
+multiplicities(ρ)
+
+Λ,Q = gelfand_reduce(R)
+c = contents2partition(Λ)
+
+pⱼ = partitions(6)[2]
+j = findall(isequal(pⱼ), c)
+Qⱼ = Q[:,j]
+ρⱼ = Representation(map(g -> Qⱼ'*g*Qⱼ, R.generators))
+
+m = multiplicities(ρⱼ)
+
+function singlemultreduce(ρ)
+    m = multiplicities(ρ)
+    @assert length(m) == 1
+    singlemultreduce(ρ, first(m))
+end
+
+function singlemultreduce(ρ, p)
+    σ = Representation(p)
+    m = size(σ,1)
+    n = size(ρ,1)
+    A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
+    Q̃ = nullspace(A)*sqrt(m)
+    reshape(vec(Q̃), n, n)
+end
+    
+
+
+
+Q̄'*ρ.generators[4]*Q̄
+
+
+reshape(Q̃[:,2],n,m)'*(reshape(Q̃[:,2],n,m))
+
+
+
+.generators
+
+
+
+σ  = sortperm(c)
+Q = Q[:,σ]
+
+
+
+Q'*R.generators[3]*Q
 
 σ = Partition([3,3,1])
 ρ = Representation(σ)
