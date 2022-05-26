@@ -13,7 +13,7 @@ import LinearAlgebra: adjoint, transpose, eigen
 
 export Partition, YoungMatrix, partitions, youngtableaux, YoungTableau, ⊗, ⊕,
         Representation, multiplicities, generators, standardrepresentation, randpartition,
-        blkdiagonalize, hooklength
+        blockdiagonalize, hooklength
 
 
 # utility function
@@ -274,8 +274,8 @@ generators(R::Representation) = R.generators
 size(R::Representation, k) = size(R.generators[1], k)
 size(R::Representation) = size(R.generators[1])
 
-diagm(A::Vector{<:Representation}) = Representation(blkdiag.(generators.(A)...))
-⊕(A::Representation...) = Representation(blkdiag.(generators.(A)...))
+diagm(A::Vector{<:Representation}) = Representation(blockdiag.(generators.(A)...))
+⊕(A::Representation...) = Representation(blockdiag.(generators.(A)...))
 
 
 (R::Representation)(P::AbstractPermutation) =
@@ -339,12 +339,49 @@ function gelfand_reduce(X)
        Λ, Q₁*Q
 end
 
-function blkdiagonalize(R::Representation)
-    Λ,Q = gelfand_reduce(R)
-    # place all representations together
-    σ  = sortperm(contents2partition(Λ))
-    Q = Q[:,σ]
-    Representation(map(g -> Q'*g*Q, R.generators)), Q
+function singlemultreduce(ρ)
+    m = multiplicities(ρ)
+    @assert length(m) == 1
+    singlemultreduce(ρ, Representation(first(keys(m))))
+end
+
+function singlemultreduce(ρ, σ)
+    m = size(σ,1)
+    n = size(ρ,1)
+    A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
+    Q̃ = nullspace(convert(Matrix,A);atol=1E-10)*sqrt(m)
+    reshape(vec(Q̃), n, n)
+end
+    
+
+
+function blockdiagonalize(ρ::Representation)
+    Λ,Q = gelfand_reduce(ρ)
+    n = length(ρ.generators)+1
+    
+    Q̃ = similar(Q)
+    # diagonalised generators
+    ρd = zero.(ρ.generators)
+    
+    c = contents2partition(Λ)
+
+    k = 0
+    for pⱼ in partitions(n)
+        j = findall(isequal(pⱼ), c)
+        if !isempty(j)
+            Qⱼ = Q[:,j]
+            ρⱼ = Representation(map(g -> Qⱼ'*g*Qⱼ, ρ.generators))
+            Q̃ⱼ = singlemultreduce(ρⱼ)
+            m = length(j)
+            Q̃[:,k+1:k+m] = Qⱼ * Q̃ⱼ
+            irrep = Representation(pⱼ)
+            for ℓ = 1:n-1
+                ρd[ℓ][k+1:k+m,k+1:k+m] = blockdiag(fill(irrep.generators[ℓ], m÷size(irrep,1))...)
+            end
+            k += m
+        end
+    end
+    Representation(ρd), Q̃
 end
 
 function contents2partition(part::Vector)
