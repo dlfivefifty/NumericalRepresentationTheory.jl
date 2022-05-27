@@ -385,18 +385,18 @@ function blockdiagonalize(ρ::Representation)
 end
 
 function contents2partition(part::Vector)
-    part=sort(part)
-    p=zeros(Int64,1-first(part))
-    k=1
-    while k≤length(part)
-        pk=part[k]
-        rk=pk<0 ? 1-pk : 1
-        p[rk]+=1
-        k+=1
-        while k≤length(part) && part[k] == pk
-            k+=1
-            rk+=1
-            p[rk]+=1
+    part = sort(part)
+    p = zeros(Int, 1-first(part))
+    k = 1
+    while k ≤ length(part)
+        pₖ = part[k]
+        rₖ = pₖ < 0 ? 1-pₖ : 1
+        p[rₖ] += 1
+        k += 1
+        while k ≤ length(part) && part[k] == pₖ
+            k += 1
+            rₖ += 1
+            p[rₖ] += 1
         end
     end
     Partition(p)
