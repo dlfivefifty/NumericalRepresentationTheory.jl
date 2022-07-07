@@ -361,7 +361,7 @@ function blockdiagonalize(ρ::Representation)
     
     Q̃ = similar(Q)
     # diagonalised generators
-    ρd = zero.(ρ.generators)
+    ρd = float.(zero.(ρ.generators))
     
     c = contents2partition(Λ)
 
