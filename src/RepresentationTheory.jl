@@ -35,6 +35,8 @@ struct Partition
     end
 end
 
+Partition(σ::Int...) = Partition([σ...])
+
 function isless(a::Partition, b::Partition)
     n,m = Int(a), Int(b)
     n < m && return true
@@ -264,6 +266,7 @@ struct Representation{MT}
        generators::Vector{MT}
 end
 
+Representation(σ::Int...) = Representation(Partition(σ...))
 Representation(σ::Partition) = Representation(irrepgenerators(σ))
 kron(A::Representation, B::Representation) = Representation(kron.(A.generators, B.generators))
 ⊗(A::Representation, B::Representation) = kron(A, B)
