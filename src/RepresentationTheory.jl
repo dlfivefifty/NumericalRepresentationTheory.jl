@@ -41,7 +41,9 @@ function isless(a::Partition, b::Partition)
     n,m = Int(a), Int(b)
     n < m && return true
     if n == m
-        for k = 1:min(length(a.σ), length(b.σ))
+        M,N = length(a.σ), length(b.σ)
+        M ≠ N && return isless(M,N)
+        for k = 1:N
             a.σ[k] > b.σ[k] && return true
             a.σ[k] < b.σ[k] && return false
         end
@@ -477,7 +479,7 @@ function plot(mults::Dict{Partition,<:Integer}; kwds...)
     ret = Any[]
     M = mapreduce(maximum, max, keys(mults))
     N = mapreduce(length, max, keys(mults))
-    for (σ,m) in mults
+    for (σ,m) in sort(mults)
         push!(ret, plot(σ; title="$m", xlims=(0,M), ylims=(-N,0)))
     end
     plot(ret...; kwds...)
