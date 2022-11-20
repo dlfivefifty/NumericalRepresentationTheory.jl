@@ -24,6 +24,18 @@ import RepresentationTheory: gelfandbasis
     for k = 1:length(λ.generators)
         @test Q' * ρ.generators[k] * Q ≈ λ.generators[k]
     end
+
+    @testset "Rotate irrep" begin
+        ρ  = Representation(3,2,1,1)
+        λ,Q = blockdiagonalize(ρ)
+        @test Q ≈ I
+        @test multiplicities(ρ)[Partition(3,2,1,1)] == 1
+
+        Q = qr(randn(size(ρ,1), size(ρ,1))).Q
+        ρ̃ = Representation(map(τ -> Q*τ*Q', ρ.generators))
+        @test multiplicities(ρ̃) == multiplicities(ρ)
+        @test abs.(blockdiagonalize(ρ̃)[2]) ≈ abs.(Q)
+    end
 end
 
 

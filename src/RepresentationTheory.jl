@@ -364,7 +364,7 @@ function singlemultreduce(ρ, σ)
     m = size(σ,1)
     n = size(ρ,1)
     A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
-    Q̃ = nullspace(convert(Matrix,A);atol=1E-10)*sqrt(m)
+    Q̃ = nullspace(convert(Matrix,A); atol=1E-10)*sqrt(m)
     reshape(vec(Q̃), n, n)
 end
     
