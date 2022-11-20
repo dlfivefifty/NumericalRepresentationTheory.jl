@@ -29,8 +29,12 @@ end
 struct Partition
     σ::Vector{Int}
     function Partition(σ)
-        @assert issorted(σ; lt=Base.:>)
-        @assert all(x -> x > 0, σ)
+        if !issorted(σ; lt=Base.:>)
+            error("input vector $σ should be sorted")
+        end
+        if !all(x -> x > 0, σ)
+            error("input vector $σ should be all positive")
+        end
         new(σ)
     end
 end
@@ -323,6 +327,12 @@ gelfand_reduce(R::Representation) = gelfand_reduce(Matrix.(gelfandbasis(R.genera
 function gelfand_reduce(X)
        λ̃, Q₁ = eigen(Symmetric(X[1]))
        λ = round.(Int, λ̃)
+       if !(Q₁'Q₁ ≈ I)
+            error("The eigenvalue decomposition has failed")
+       end
+       if !(isapprox(λ, λ̃; atol=1E-10))
+           error("$λ̃ are not all approximately an integer")
+       end
        length(X) == 1 && return reshape(λ,length(λ),1),Q₁
 
        m = eigmults(λ)
@@ -335,7 +345,7 @@ function gelfand_reduce(X)
        for j=2:length(c_m)
               j_inds = c_m[j-1]+1:c_m[j]
               Qʲ = Q₁[:,j_inds] # deflated rows
-              Xⱼ = map(X -> adjoint(Qʲ)*X*Qʲ, X[2:end])
+              Xⱼ = map(X -> Qʲ'*X*Qʲ, X[2:end])
               Λⱼ, Qⱼ = gelfand_reduce(Xⱼ)
               Q[j_inds,j_inds] = Qⱼ
               Λ[j_inds,2:end] = Λⱼ
