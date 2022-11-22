@@ -324,8 +324,20 @@ end
 
 gelfand_reduce(R::Representation) = gelfand_reduce(Matrix.(gelfandbasis(R.generators)))
 
+function symeigen(A)
+    Q,H = hessenberg(A)
+    try
+        λ,U = eigen(H)
+        λ,Q*U
+    catch
+        println(H.dv)
+        println(H.ev)
+        error("hello")
+    end
+end
+
 function gelfand_reduce(X)
-       λ̃, Q₁ = eigen(Symmetric(X[1]))
+       λ̃, Q₁ = symeigen(Symmetric(X[1]))
        λ = round.(Int, λ̃)
        if !(Q₁'Q₁ ≈ I)
             error("The eigenvalue decomposition has failed")

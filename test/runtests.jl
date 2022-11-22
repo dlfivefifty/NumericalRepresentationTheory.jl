@@ -36,12 +36,11 @@ import RepresentationTheory: gelfandbasis
         @test multiplicities(ρ̃) == multiplicities(ρ)
         @test abs.(blockdiagonalize(ρ̃)[2]) ≈ abs.(Q)
     end
+
+    @testset "short irreps" begin
+        n = 4; ρ = Representation(n,n)
+        @test multiplicities(ρ ⊗ ρ)[Partition(2,2,2,2)] == 1
+        n = 5; ρ = Representation(n,n)
+        @test multiplicities(ρ ⊗ ρ)[Partition(2,2,2,2)] == 1
+    end
 end
-
-
-basis = gelfandbasis(Representation(Partition([3,2,1])).generators)
-Λ = Matrix{Int}(undef, size(basis[1],1), length(basis))
-for k in axes(Λ,1), j in axes(Λ,2)
-    Λ[k,j] = round(Int,basis[j][k,k])
-end
-
