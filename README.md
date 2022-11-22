@@ -8,7 +8,7 @@ This package supports basic representation theory of the symmetric group. One ca
 ```julia
 julia> using RepresentationTheory, Permutations, Plots
 
-julia> R₁ = Representation(Partition([5,1,1]));
+julia> R₁ = Representation(5,1,1);
 
 julia> g = Permutation([7,2,1,3,4,6,5]); Matrix(R₁(g)) # Matrix representation of a specific permutation
 15×15 Array{Float64,2}:
@@ -28,10 +28,32 @@ julia> g = Permutation([7,2,1,3,4,6,5]); Matrix(R₁(g)) # Matrix representation
   0.0        0.0         0.0            0.0721688  -0.0416667  -0.235702
   0.0        0.0         0.0           -0.816497    0.471405   -0.333333
 
-julia> R₂ = Representation(Partition([2,2,2,1]));
+julia> R₂ = Representation(2,2,2,1);
 
 julia> R = R₁ ⊗ R₂; # Tensor product representation
 
-julia> plot(multiplicities(R));
+julia> multiplicities(R) # Returns a dictionary whose keys are partitions and values are the multiplicities
+Dict{Partition, Int64} with 8 entries:
+  7 = 2 + 2 + 2 + 1     => 1
+  7 = 4 + 2 + 1         => 1
+  7 = 3 + 1 + 1 + 1 + 1 => 1
+  7 = 3 + 2 + 2         => 1
+  7 = 3 + 3 + 1         => 1
+  7 = 2 + 2 + 1 + 1 + 1 => 1
+  7 = 4 + 1 + 1 + 1     => 1
+  7 = 3 + 2 + 1 + 1     => 2
+
+julia> plot(multiplicities(R)) # We can also plot
 ```
 <img src=https://github.com/dlfivefifty/RepresentationTheory.jl/raw/master/images/mults.png width=500 height=400>
+
+In addition, one can find an orthogonal transformation that reduces a representation to irreducibles:
+```julia
+julia> ρ,Q = blockdiagonalize(R); # Q'R(g)*Q ≈ ρ(g) where ρ is a direct sum (block diagonal) of irreducibles.
+
+julia> Q'R(g)*Q ≈ ρ(g)
+true
+
+julia> ρ(g) ≈ (Representation(4,2,1) ⊕ Representation(4,1,1,1) ⊕ Representation(3,3,1) ⊕ Representation(3,2,2) ⊕ Representation(3,2,1,1) ⊕ Representation(3,2,1,1) ⊕ Representation(3,1,1,1,1) ⊕ Representation(2,2,2,1) ⊕ Representation(2,2,1,1,1))(g)
+true
+```
