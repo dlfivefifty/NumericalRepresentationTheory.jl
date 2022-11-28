@@ -1,4 +1,4 @@
-# RepresentationTheory.jl
+# NumericalRepresentationTheory.jl
 A Julia package for representation theory of the symmetric group
 
 
@@ -6,7 +6,7 @@ A Julia package for representation theory of the symmetric group
 
 This package supports basic representation theory of the symmetric group. One can form irreducible representations (irreps) by specifying the corresponding permutation, combine representations via direct sum and Kronecker product, and also calculate the resulting irrep multipliciplities. For example, the following code calculates the Kronecker coefficients of two irreps of S₇, specified by the partitions `5+1+1` and `2+2+2+1`:
 ```julia
-julia> using RepresentationTheory, Permutations, Plots
+julia> using NumericalRepresentationTheory, Permutations, Plots
 
 julia> R₁ = Representation(5,1,1);
 
@@ -45,7 +45,7 @@ Dict{Partition, Int64} with 8 entries:
 
 julia> plot(multiplicities(R)) # We can also plot
 ```
-<img src=https://github.com/dlfivefifty/RepresentationTheory.jl/raw/master/images/mults.png width=500 height=400>
+<img src=https://github.com/dlfivefifty/NumericalRepresentationTheory.jl/raw/master/images/mults.png width=500 height=400>
 
 In addition, one can find an orthogonal transformation that reduces a representation to irreducibles:
 ```julia

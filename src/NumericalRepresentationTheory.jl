@@ -1,4 +1,4 @@
-module RepresentationTheory
+module NumericalRepresentationTheory
 using Base, LinearAlgebra, Permutations, RecipesBase, Plots, SparseArrays
 import Base: getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
