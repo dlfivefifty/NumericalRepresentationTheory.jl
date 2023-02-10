@@ -34,7 +34,7 @@ import NumericalRepresentationTheory: gelfandbasis
         Q = qr(randn(size(ρ,1), size(ρ,1))).Q
         ρ̃ = Representation(map(τ -> Q*τ*Q', ρ.generators))
         @test multiplicities(ρ̃) == multiplicities(ρ)
-        @test abs.(blockdiagonalize(ρ̃)[2]) ≈ abs.(Q)
+        @test abs.(blockdiagonalize(ρ̃)[2]) ≈ abs.(Matrix(Q))
     end
 end
 
