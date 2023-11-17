@@ -1,4 +1,4 @@
-using NumericalRepresentationTheory, LinearAlgebra, Test
+using NumericalRepresentationTheory, Permutations, LinearAlgebra, Test
 import NumericalRepresentationTheory: gelfandbasis
 
 @testset "Representations" begin
@@ -36,12 +36,18 @@ import NumericalRepresentationTheory: gelfandbasis
         @test multiplicities(ρ̃) == multiplicities(ρ)
         @test abs.(blockdiagonalize(ρ̃)[2]) ≈ abs.(Matrix(Q))
     end
+
+    @testset "Rico Bug" begin
+        ρ = Representation(2,1)
+        g = Permutation([1,2,3])
+        @test ρ(g) == I(2)
+    end
 end
 
 
-basis = gelfandbasis(Representation(Partition([3,2,1])).generators)
-Λ = Matrix{Int}(undef, size(basis[1],1), length(basis))
-for k in axes(Λ,1), j in axes(Λ,2)
-    Λ[k,j] = round(Int,basis[j][k,k])
-end
+# basis = gelfandbasis(Representation(Partition([3,2,1])).generators)
+# Λ = Matrix{Int}(undef, size(basis[1],1), length(basis))
+# for k in axes(Λ,1), j in axes(Λ,2)
+#     Λ[k,j] = round(Int,basis[j][k,k])
+# end
 
