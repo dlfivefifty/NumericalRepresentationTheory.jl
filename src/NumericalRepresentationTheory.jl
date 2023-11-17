@@ -287,8 +287,14 @@ diagm(A::Vector{<:Representation}) = Representation(blockdiag.(generators.(A)...
 ⊕(A::Representation...) = Representation(blockdiag.(generators.(A)...))
 
 
-(R::Representation)(P::AbstractPermutation) =
-    *(map(i -> R.generators[i], CoxeterDecomposition(P).terms)...)
+function (R::Representation)(P::AbstractPermutation)
+    if isempty(CoxeterDecomposition(P).terms)
+        # Identity
+        one(first(R.generators))
+    else
+        *(map(i -> R.generators[i], CoxeterDecomposition(P).terms)...)
+    end
+end
 
 # determine multiplicities of eigs on diagonal, assuming sorted
 function eigmults(λ::Vector{Int})
