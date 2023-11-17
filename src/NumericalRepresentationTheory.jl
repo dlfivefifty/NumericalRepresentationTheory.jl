@@ -290,7 +290,7 @@ diagm(A::Vector{<:Representation}) = Representation(blockdiag.(generators.(A)...
 function (R::Representation)(P::AbstractPermutation)
     if isempty(CoxeterDecomposition(P).terms)
         # Identity
-        one(first(ρ.generators))
+        one(first(R.generators))
     else
         *(map(i -> R.generators[i], CoxeterDecomposition(P).terms)...)
     end
