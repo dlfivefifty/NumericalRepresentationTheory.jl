@@ -1,5 +1,5 @@
 using NumericalRepresentationTheory, Permutations, LinearAlgebra, Test
-import NumericalRepresentationTheory: gelfandbasis
+import NumericalRepresentationTheory: gelfandbasis, canonicalrepresentation
 
 @testset "Representations" begin
     σ = Partition([3,3,2,1])
