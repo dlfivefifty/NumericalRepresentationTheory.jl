@@ -1,11 +1,8 @@
 module NumericalRepresentationTheory
-using Base, LinearAlgebra, Permutations, RecipesBase, Plots, SparseArrays
+using Base, LinearAlgebra, Permutations, SparseArrays
 import Base: getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
 
-
-import RecipesBase: plot
-import Permutations: AbstractPermutation
 import LinearAlgebra: adjoint, transpose, eigen
 ## Kronecker product of Sn
 
@@ -287,7 +284,7 @@ diagm(A::Vector{<:Representation}) = Representation(blockdiag.(generators.(A)...
 ⊕(A::Representation...) = Representation(blockdiag.(generators.(A)...))
 
 
-function (R::Representation)(P::AbstractPermutation)
+function (R::Representation)(P)
     if isempty(CoxeterDecomposition(P).terms)
         # Identity
         one(first(R.generators))
@@ -470,35 +467,7 @@ end
 
 standardrepresentation(n) = Representation(Matrix{Float64}[perm(k,k+1,n) for k=1:n-1])
 
+include("canonicalprojection.jl")
 
-## Plotting
-
-@recipe function f(σ::Partition)
-    legend --> false
-    ratio --> 1.0
-    axis --> false
-    grid --> false
-    color --> :orange
-    ticks --> false
-    linewidth --> 2
-
-    ret = Shape[]
-    m = length(σ)
-    for j = 1:m, k = 1:σ[j]
-        push!(ret, Shape([k-1,k-1,k,k],[1-j,-j,-j,1-j]))
-    end
-    ret
-end
-
-
-function plot(mults::Dict{Partition,<:Integer}; kwds...)
-    ret = Any[]
-    M = mapreduce(maximum, max, keys(mults))
-    N = mapreduce(length, max, keys(mults))
-    for (σ,m) in sort(mults)
-        push!(ret, plot(σ; title="$m", xlims=(0,M), ylims=(-N,0)))
-    end
-    plot(ret...; kwds...)
-end
 
 end #module
