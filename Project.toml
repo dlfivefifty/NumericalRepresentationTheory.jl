@@ -1,7 +1,7 @@
 name = "NumericalRepresentationTheory"
 uuid = "6b7c1d51-ecee-4149-97a8-50646b514dce"
 authors = ["Sheehan Olver <solver@mac.com>"]
-version = "0.2"
+version = "0.2.0"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -14,7 +14,6 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
 [extensions]
 NumericalRepresentationTheoryPlotsExt = "Plots"
-
 
 [compat]
 Permutations = "0.4"
