@@ -1,4 +1,4 @@
-using NumericalRepresentationTheory, Permutations, LinearAlgebra, Test
+using NumericalRepresentationTheory, Permutations, LinearAlgebra, SparseArrays, Test
 import NumericalRepresentationTheory: gelfandbasis, canonicalprojection
 
 @testset "Representations" begin
