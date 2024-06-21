@@ -121,7 +121,7 @@ struct YoungMatrix <: AbstractMatrix{Int}
 end
 
 YoungMatrix(data::Matrix{Int}, σ::Partition) = YoungMatrix(data, σ, σ')
-YoungMatrix(::UndefInitializer, σ::Partition) = YoungMatrix(Matrix{Int}(undef, length(σ), maximum(σ)), σ)
+YoungMatrix(::UndefInitializer, σ::Partition) = YoungMatrix(zeros(Int, length(σ), maximum(σ)), σ)
 
 YoungMatrix(dat, σ::Vector{Int}) = YoungMatrix(dat, Partition(σ))
 
@@ -134,6 +134,7 @@ function setindex!(Y::YoungMatrix, v, k::Int, j::Int)
     Y.data[k,j] = v
 end
 
+hash(Y::YoungMatrix) = hash(Y.data)
 
 
 struct YoungTableau
@@ -230,6 +231,7 @@ randpartition(N) = randpartition(N, 1)[1]
 function irrepgenerator(σ::Partition, i::Int)
     Is = Int[]; Js = Int[]; Vs = Float64[]
     t = YoungMatrix.(youngtableaux(σ))
+    t_lookup = Dict(tuple.(t, 1:length(t)))
     d = length(t)
 
     for j = 1:d
@@ -248,7 +250,7 @@ function irrepgenerator(σ::Partition, i::Int)
         else
             Yt = copy(Y) # Tableau with swapped indices
             Yt[ii...], Yt[ip...] = (Yt[ip...], Yt[ii...])
-            k = findfirst(isequal(Yt), t)
+            k = t_lookup[Yt]
             # set entries to matrix [1/r sqrt(1-1/r^2); sqrt(1-1/r^2) -1/r]
             push!(Is, j, j)
             push!(Js, j, k)
