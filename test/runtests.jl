@@ -1,5 +1,5 @@
 using NumericalRepresentationTheory, Permutations, LinearAlgebra, SparseArrays, Test
-import NumericalRepresentationTheory: gelfandbasis, canonicalprojection
+import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlemultreduce, conjugate, gelfand_reduce, contents2partition, sortcontentsperm
 
 @testset "Representations" begin
     σ = Partition([3,3,2,1])
@@ -41,6 +41,34 @@ import NumericalRepresentationTheory: gelfandbasis, canonicalprojection
         ρ = Representation(2,1)
         g = Permutation([1,2,3])
         @test ρ(g) == I(2)
+    end
+
+    @testset "group by rep" begin
+        s = standardrepresentation(4)
+        ρ = s ⊗ s
+        Λ = gelfand_reduce(ρ)[1]
+        p = sortcontentsperm(Λ)
+        @test contents2partition(Λ[p,:]) == [fill(Partition(2,1,1),3); fill(Partition(2,2),2); fill(Partition(3,1),9); fill(Partition(4),2)]
+    end
+
+    @testset "singlemultreduce" begin
+        ρ = Representation(2,2)
+        ρ₂ = blockdiag(ρ, ρ)
+        Q = qr(randn(size(ρ₂))).Q
+        ρ₂ = conjugate(ρ₂, Q)
+        Λ, Q̃ = gelfand_reduce(ρ₂)
+        p = sortcontentsperm(Λ)
+        
+        ρ₂ = conjugate(ρ₂, Q̃[:,p])
+        singlemultreduce(ρ₂)
+
+        ρ = Representation(2,2)
+        ρ₃ = blockdiag(ρ, ρ, ρ)
+        Q = qr(randn(size(ρ₃))).Q
+        ρ₃ = conjugate(ρ₃, Q)
+        λ, Q̃ = gelfand_reduce(ρ₃)
+        ρ₃ = conjugate(ρ₃, Q̃)
+        singlemultreduce(ρ₃)
     end
 end
 

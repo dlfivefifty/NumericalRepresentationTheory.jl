@@ -4,6 +4,7 @@ import Base: getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
 
 import LinearAlgebra: adjoint, transpose, eigen
+import SparseArrays: blockdiag
 ## Kronecker product of Sn
 
 
@@ -40,13 +41,14 @@ Partition(σ::Int...) = Partition([σ...])
 
 function isless(a::Partition, b::Partition)
     n,m = Int(a), Int(b)
-    n < m && return true
-    if n == m
-        M,N = length(a.σ), length(b.σ)
-        M ≠ N && return isless(M,N)
-        for k = 1:N
-            a.σ[k] > b.σ[k] && return true
-            a.σ[k] < b.σ[k] && return false
+    if n ≠ m
+        return n < m
+    end
+    
+    M,N = length(a.σ), length(b.σ)
+    for k = 1:min(M,N)
+        if a.σ[k] ≠ b.σ[k] 
+            return a.σ[k] < b.σ[k]
         end
     end
 
@@ -128,9 +130,9 @@ YoungMatrix(dat, σ::Vector{Int}) = YoungMatrix(dat, Partition(σ))
 copy(Y::YoungMatrix) = YoungMatrix(copy(Y.data), Y.rows, Y.columns)
 
 size(Y::YoungMatrix) = size(Y.data)
-getindex(Y::YoungMatrix, k::Int, j::Int) = ifelse(k ≤ Y.columns[j] && j ≤ Y.rows[k], Y.data[k,j], 0)
+getindex(Y::YoungMatrix, k::Int, j::Int) = ifelse(k ≤ Y.columns[j] && j ≤ Y.rows[k], Y.data[k,j], 0)
 function setindex!(Y::YoungMatrix, v, k::Int, j::Int)
-    @assert k ≤ Y.columns[j] && j ≤ Y.rows[k]
+    @assert k ≤ Y.columns[j] && j ≤ Y.rows[k]
     Y.data[k,j] = v
 end
 
@@ -139,6 +141,16 @@ hash(Y::YoungMatrix) = hash(Y.data)
 
 struct YoungTableau
 	partitions::Vector{Partition}
+end
+
+function isless(a::YoungTableau, b::YoungTableau)
+    if length(a.partitions) ≠ length(b.partitions)
+        return length(a.partitions) < length(b.partitions)
+    end
+    for (p,q) in zip(a.partitions, b.partitions)
+        p ≠ q && return isless(p,q)
+    end
+    return false
 end
 
 function YoungMatrix(Yt::YoungTableau)
@@ -274,6 +286,14 @@ end
 Representation(σ::Int...) = Representation(Partition(σ...))
 Representation(σ::Partition) = Representation(irrepgenerators(σ))
 kron(A::Representation, B::Representation) = Representation(kron.(A.generators, B.generators))
+
+
+blockdiag(A::Representation...) = Representation(blockdiag.(getfield.(A, :generators)...))
+
+
+conjugate(ρ::Representation, Q) = Representation(map(g -> Q'*g*Q, ρ.generators))
+
+
 ⊗(A::Representation, B::Representation) = kron(A, B)
 
 |(A::Representation, n::AbstractVector) = Representation(A.generators[n])
@@ -328,6 +348,23 @@ function gelfandbasis(gen::Vector{MT}) where MT
 end
 
 gelfand_reduce(R::Representation) = gelfand_reduce(Matrix.(gelfandbasis(R.generators)))
+
+function sortcontentsperm(Λ)
+    ps = contents2partition(Λ)
+    perm = Int[]
+
+
+    for pₖ in union(ps)
+        dₖ = hooklength(pₖ)
+        inds = findall(==(pₖ), ps)
+        aₖ = length(inds) ÷ dₖ # number of times repeated
+        for j = 1:aₖ
+            append!(perm, inds[j:aₖ:end])
+        end
+    end
+
+    perm
+end
 
 function gelfand_reduce(X)
        λ̃, Q₁ = eigen(Symmetric(X[1]))
@@ -390,8 +427,8 @@ function blockdiagonalize(ρ::Representation)
         j = findall(isequal(pⱼ), c)
         if !isempty(j)
             Qⱼ = Q[:,j]
-            ρⱼ = Representation(map(g -> Qⱼ'*g*Qⱼ, ρ.generators))
-            Q̃ⱼ = singlemultreduce(ρⱼ)
+            ρⱼ = conjugate(ρ, Qⱼ)
+            Q̃ⱼ = singlemultreduce(ρⱼ, Representation(pⱼ))
             m = length(j)
             Q̃[:,k+1:k+m] = Qⱼ * Q̃ⱼ
             irrep = Representation(pⱼ)
