@@ -201,7 +201,7 @@ end
 function youngtableaux(σ::Partition)
 	σ == Partition([1]) && return [YoungTableau([σ])]
 	Yts = mapreduce(youngtableaux, vcat, lowerpartitions(σ))
-	map(Yt -> YoungTableau([Yt.partitions; σ]), Yts)
+	sort!(map(Yt -> YoungTableau([Yt.partitions; σ]), Yts))
 end
 
 
@@ -414,6 +414,9 @@ end
 
 function blockdiagonalize(ρ::Representation)
     Λ,Q = gelfand_reduce(ρ)
+    p = sortcontentsperm(Λ)
+    Q = Q[:,p]
+    Λ = Λ[p,:]
     n = length(ρ.generators)+1
     
     Q̃ = similar(Q)
@@ -423,20 +426,18 @@ function blockdiagonalize(ρ::Representation)
     c = contents2partition(Λ)
 
     k = 0
-    for pⱼ in partitions(n)
+    for pⱼ in union(c)
         j = findall(isequal(pⱼ), c)
-        if !isempty(j)
-            Qⱼ = Q[:,j]
-            ρⱼ = conjugate(ρ, Qⱼ)
-            Q̃ⱼ = singlemultreduce(ρⱼ, Representation(pⱼ))
-            m = length(j)
-            Q̃[:,k+1:k+m] = Qⱼ * Q̃ⱼ
-            irrep = Representation(pⱼ)
-            for ℓ = 1:n-1
-                ρd[ℓ][k+1:k+m,k+1:k+m] = blockdiag(fill(irrep.generators[ℓ], m÷size(irrep,1))...)
-            end
-            k += m
+        Qⱼ = Q[:,j]
+        ρⱼ = conjugate(ρ, Qⱼ)
+        Q̃ⱼ = singlemultreduce(ρⱼ, Representation(pⱼ))
+        m = length(j)
+        Q̃[:,k+1:k+m] = Qⱼ * Q̃ⱼ
+        irrep = Representation(pⱼ)
+        for ℓ = 1:n-1
+            ρd[ℓ][k+1:k+m,k+1:k+m] = blockdiag(fill(irrep.generators[ℓ], m÷size(irrep,1))...)
         end
+        k += m
     end
     Representation(ρd), Q̃
 end

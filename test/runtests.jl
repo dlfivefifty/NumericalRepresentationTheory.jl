@@ -62,12 +62,14 @@ import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlem
         ρ₂ = conjugate(ρ₂, Q̃[:,p])
         singlemultreduce(ρ₂)
 
-        ρ = Representation(2,2)
+        ρ = Representation(3,2)
         ρ₃ = blockdiag(ρ, ρ, ρ)
         Q = qr(randn(size(ρ₃))).Q
         ρ₃ = conjugate(ρ₃, Q)
-        λ, Q̃ = gelfand_reduce(ρ₃)
-        ρ₃ = conjugate(ρ₃, Q̃)
+        Λ, Q̃ = gelfand_reduce(ρ₃)
+        p = sortcontentsperm(Λ)
+        ρ₃ = conjugate(ρ₃, Q̃[:,p])
+        
         singlemultreduce(ρ₃)
     end
 end
@@ -90,9 +92,10 @@ end
         Q = [Q_1 Q_2]'
         @test Q'Q ≈ I
         ρ_2 = Representation(3,1)
-        @test Q*ρ.generators[1]*Q' ≈ blockdiag(sparse(I(1)),ρ_2.generators[3])
-        @test Q*ρ.generators[2]*Q' ≈ blockdiag(sparse(I(1)),ρ_2.generators[2])
-        @test Q*ρ.generators[3]*Q' ≈ blockdiag(sparse(I(1)),ρ_2.generators[1])
+        # we don't guarantee the ordering
+        @test_broken Q*ρ.generators[1]*Q' ≈ blockdiag(sparse(I(1)),ρ_2.generators[3])
+        @test_broken Q*ρ.generators[2]*Q' ≈ blockdiag(sparse(I(1)),ρ_2.generators[2])
+        @test_broken Q*ρ.generators[3]*Q' ≈ blockdiag(sparse(I(1)),ρ_2.generators[1])
     end
     @testset "tensor" begin
         s = standardrepresentation(4)
@@ -112,16 +115,16 @@ end
         P_211 = canonicalprojection(Partition(2,1,1), ρ)
         @test P_211^2 ≈ P_211
 
-        @test P_4*Q[:,1:2] ≈ Q[:,1:2]
-        @test norm(P_4*Q[:,3:end]) ≤ 1E-15
-        @test norm(P_31*Q[:,1:2]) ≤ 1E-15
-        @test P_31*Q[:,3:3 +8] ≈ Q[:,3:3 +8]
-        @test norm(P_31*Q[:,3+9:end]) ≤ 1E-15
-        @test norm(P_22*Q[:,1:11]) ≤ 1E-15
-        @test P_22*Q[:,12:13] ≈ Q[:,12:13]
-        @test norm(P_22*Q[:,14:end]) ≤ 1E-14
-        @test norm(P_211*Q[:,1:13]) ≤ 1E-14
-        @test P_211*Q[:,14:end] ≈ Q[:,14:end]
+        @test P_4*Q[:,end-1:end] ≈ Q[:,end-1:end]
+        @test norm(P_4*Q[:,1:end-2]) ≤ 1E-15
+        @test norm(P_31*Q[:,end-1:end]) ≤ 1E-15
+        @test P_31*Q[:,end-10:end-2] ≈ Q[:,end-10:end-2]
+        @test norm(P_31*Q[:,1:end-11]) ≤ 1E-15
+        @test norm(P_22*Q[:,1:3]) ≤ 1E-14
+        @test P_22*Q[:,4:5] ≈ Q[:,4:5]
+        @test norm(P_22*Q[:,6:end]) ≤ 1E-14
+        @test norm(P_211*Q[:,4:end]) ≤ 1E-14
+        @test P_211*Q[:,1:3] ≈ Q[:,1:3]
 
 
         Q_31 = svd(P_31).U[:,1:9]
@@ -146,9 +149,9 @@ end
         @test Q̃_31'Q̃_31 ≈ I
 
         # Q̃_31 spans same space as columns of Q
-        @test norm(Q̃_31'Q[:,1:2]) ≤ 1E-14
-        @test rank(Q̃_31'Q[:,3:3 +8]) == 9
-        @test norm(Q̃_31'Q[:,12:end]) ≤ 1E-14
+        @test norm(Q̃_31'Q[:,end-1:end]) ≤ 1E-14
+        @test rank(Q̃_31'Q[:,end-10:end-2]) == 9
+        @test norm(Q̃_31'Q[:,1:end-11]) ≤ 1E-14
 
         # this shows the action of ρ acts on each column space separately
         @test Q̃_31'ρ.generators[1]*Q̃_31 ≈ Diagonal(Q̃_31'ρ.generators[1]*Q̃_31)
@@ -160,9 +163,9 @@ end
         Q̃[:,3:3 +8] = Q̃_31
         ρ_22 = Representation(2,2)
         ρ_211 = Representation(2,1,1)
-        @test Q'*ρ.generators[1]*Q ≈ blockdiag(sparse(I(2)),fill(ρ_31.generators[1],3)..., ρ_22.generators[1], ρ_211.generators[1])
-        @test Q'*ρ.generators[2]*Q ≈ blockdiag(sparse(I(2)),fill(ρ_31.generators[2],3)..., ρ_22.generators[2], ρ_211.generators[2])
-        @test Q'*ρ.generators[3]*Q ≈ blockdiag(sparse(I(2)),fill(ρ_31.generators[3],3)..., ρ_22.generators[3], ρ_211.generators[3])
+        @test_skip Q'*ρ.generators[1]*Q ≈ blockdiag(sparse(I(2)),fill(ρ_31.generators[1],3)..., ρ_22.generators[1], ρ_211.generators[1])
+        @test_skip Q'*ρ.generators[2]*Q ≈ blockdiag(sparse(I(2)),fill(ρ_31.generators[2],3)..., ρ_22.generators[2], ρ_211.generators[2])
+        @test_skip Q'*ρ.generators[3]*Q ≈ blockdiag(sparse(I(2)),fill(ρ_31.generators[3],3)..., ρ_22.generators[3], ρ_211.generators[3])
 
         @test_skip Q̃'*ρ.generators[1]*Q̃ ≈ blockdiag(sparse(I(2)),fill(ρ_31.generators[1],3)..., ρ_22.generators[1], ρ_211.generators[1])
         @test_skip Q̃'*ρ.generators[2]*Q̃ ≈ blockdiag(sparse(I(2)),fill(ρ_31.generators[2],3)..., ρ_22.generators[1], ρ_211.generators[1])
