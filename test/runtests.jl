@@ -1,4 +1,4 @@
-using NumericalRepresentationTheory, Permutations, LinearAlgebra, SparseArrays, Test
+using NumericalRepresentationTheory, Permutations, LinearAlgebra, SparseArrays, BlockBandedMatrices, Test
 import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlemultreduce, conjugate, gelfand_reduce, contents2partition, sortcontentsperm
 
 @testset "Representations" begin
@@ -70,7 +70,48 @@ import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlem
         p = sortcontentsperm(Λ)
         ρ₃ = conjugate(ρ₃, Q̃[:,p])
         
+
+        ρ = ρ₃; σ  = Representation(3,2);
         singlemultreduce(ρ₃)
+
+        σ = Representation(3,2,1)
+        ρ = blockdiag(σ, σ)
+        Q = qr(randn(size(ρ))).Q
+        ρ = conjugate(ρ, Q)
+        Λ, Q̃ = gelfand_reduce(ρ)
+        p = sortcontentsperm(Λ)
+        ρ = conjugate(ρ, Q̃[:,p])
+        Q = singlemultreduce(ρ)
+
+        
+        m = size(σ,1)
+        n = size(ρ,1)
+        μ = n ÷ m
+        A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
+
+        jr = Int[]
+        for k = 1:m
+            append!(jr, range((k-1)*μ*m+k; step=m, length=μ))
+        end
+        V = nullspace(A[:,jr])
+        Q₂ = BandedBlockBandedMatrix{Float64}(undef, Fill(size(σ,1),2), Fill(size(σ,1),2), size(Q).- 1, (0,0))
+        for j = 1:size(V,2)
+            sh = (j-1) * size(V,1)
+            for k = 1:size(V,1)
+                view(Q₂,:,Block(j))[jr[k]] = V[k,j]
+            end
+        end
+        for k = 1:5
+            @test ρ.generators[k]Q₂ ≈ Q₂*blockdiag(σ,σ).generators[k]
+        end
+
+        kr = Int[]
+        @time for k = 1:size(A,1)
+            if norm(A[k,jr]) > 1E-13
+                push!(kr, k)
+            end
+        end
+        @time nullspace(A[kr,jr])
     end
 end
 
