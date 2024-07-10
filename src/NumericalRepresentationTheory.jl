@@ -1,5 +1,5 @@
 module NumericalRepresentationTheory
-using Base, LinearAlgebra, Permutations, SparseArrays
+using Base, LinearAlgebra, Permutations, SparseArrays, BlockBandedMatrices, BlockArrays, FillArrays
 import Base: getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
 
@@ -396,18 +396,72 @@ function gelfand_reduce(X)
        Λ, Q₁*Q
 end
 
+"""
+    singlemultreduce(ρ)
+
+reduces a representation containing only a single irrep, multiple times.
+"""
+
 function singlemultreduce(ρ)
     m = multiplicities(ρ)
     @assert length(m) == 1
     singlemultreduce(ρ, Representation(first(keys(m))))
 end
 
+"""
+    singlemultreduce(ρ, σ)
+
+reduces a representation containing only a single irrep `σ`, multiple times.
+"""
 function singlemultreduce(ρ, σ)
     m = size(σ,1)
     n = size(ρ,1)
     A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
     Q̃ = nullspace(convert(Matrix,A); atol=1E-10)*sqrt(m)
     reshape(vec(Q̃), n, n)
+end
+
+
+"""
+    singlemultreduce_blockdiag(ρ, σ)
+
+reduces a representation containing only a single irrep `σ`, multiple times.
+Unlike `singlemultreduce`, it is assumed that `ρ` comes from `gelfand_reduce` and hence
+the returned `Q` is guaranteed to be block-diagonal.
+"""
+function singlemultreduce_blockdiag(ρ, σ)
+    tol = 1E-10
+    m = size(σ,1)
+    n = size(ρ,1)
+    μ = n ÷ m
+    A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
+
+    # determine columns of `A` corresponding to non-zero entries of `Q`
+    jr = Int[]
+    for k = 1:m
+        append!(jr, range((k-1)*μ*m+k; step=m, length=μ))
+    end
+
+    # determine non-zero rows of A[:,jr]
+    kr = Int[]
+    for k = 1:size(A,1)
+        if norm(A[k,jr]) > tol
+            push!(kr, k)
+        end
+    end
+
+    V = nullspace(A[kr,jr])*sqrt(m)
+
+    # now populate non-zero entries of `Q`
+    Q = BandedBlockBandedMatrix{Float64}(undef, Fill(m,μ), Fill(m,μ), (n-1,n-1), (0,0))
+    for j = 1:size(V,2)
+        sh = (j-1) * size(V,1)
+        for k = 1:size(V,1)
+            view(Q,:,Block(j))[jr[k]] = V[k,j]
+        end
+    end
+
+    Q
 end
     
 
@@ -430,7 +484,7 @@ function blockdiagonalize(ρ::Representation)
         j = findall(isequal(pⱼ), c)
         Qⱼ = Q[:,j]
         ρⱼ = conjugate(ρ, Qⱼ)
-        Q̃ⱼ = singlemultreduce(ρⱼ, Representation(pⱼ))
+        Q̃ⱼ = singlemultreduce_blockdiag(ρⱼ, Representation(pⱼ))
         m = length(j)
         Q̃[:,k+1:k+m] = Qⱼ * Q̃ⱼ
         irrep = Representation(pⱼ)

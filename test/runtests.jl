@@ -1,5 +1,5 @@
 using NumericalRepresentationTheory, Permutations, LinearAlgebra, SparseArrays, BlockBandedMatrices, Test
-import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlemultreduce, conjugate, gelfand_reduce, contents2partition, sortcontentsperm
+import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlemultreduce, singlemultreduce_blockdiag, conjugate, gelfand_reduce, contents2partition, sortcontentsperm
 
 @testset "Representations" begin
     σ = Partition([3,3,2,1])
@@ -28,7 +28,7 @@ import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlem
     @testset "Rotate irrep" begin
         ρ  = Representation(3,2,1,1)
         λ,Q = blockdiagonalize(ρ)
-        @test Q ≈ I
+        @test Q ≈ -I || Q ≈ I
         @test multiplicities(ρ)[Partition(3,2,1,1)] == 1
 
         Q = qr(randn(size(ρ,1), size(ρ,1))).Q
@@ -51,29 +51,7 @@ import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlem
         @test contents2partition(Λ[p,:]) == [fill(Partition(2,1,1),3); fill(Partition(2,2),2); fill(Partition(3,1),9); fill(Partition(4),2)]
     end
 
-    @testset "singlemultreduce" begin
-        ρ = Representation(2,2)
-        ρ₂ = blockdiag(ρ, ρ)
-        Q = qr(randn(size(ρ₂))).Q
-        ρ₂ = conjugate(ρ₂, Q)
-        Λ, Q̃ = gelfand_reduce(ρ₂)
-        p = sortcontentsperm(Λ)
-        
-        ρ₂ = conjugate(ρ₂, Q̃[:,p])
-        singlemultreduce(ρ₂)
-
-        ρ = Representation(3,2)
-        ρ₃ = blockdiag(ρ, ρ, ρ)
-        Q = qr(randn(size(ρ₃))).Q
-        ρ₃ = conjugate(ρ₃, Q)
-        Λ, Q̃ = gelfand_reduce(ρ₃)
-        p = sortcontentsperm(Λ)
-        ρ₃ = conjugate(ρ₃, Q̃[:,p])
-        
-
-        ρ = ρ₃; σ  = Representation(3,2);
-        singlemultreduce(ρ₃)
-
+    @testset "singlemultreduce_blockdiag" begin
         σ = Representation(3,2,1)
         ρ = blockdiag(σ, σ)
         Q = qr(randn(size(ρ))).Q
@@ -83,35 +61,19 @@ import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlem
         ρ = conjugate(ρ, Q̃[:,p])
         Q = singlemultreduce(ρ)
 
-        
-        m = size(σ,1)
-        n = size(ρ,1)
-        μ = n ÷ m
-        A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
-
-        jr = Int[]
-        for k = 1:m
-            append!(jr, range((k-1)*μ*m+k; step=m, length=μ))
-        end
-        V = nullspace(A[:,jr])
-        Q₂ = BandedBlockBandedMatrix{Float64}(undef, Fill(size(σ,1),2), Fill(size(σ,1),2), size(Q).- 1, (0,0))
-        for j = 1:size(V,2)
-            sh = (j-1) * size(V,1)
-            for k = 1:size(V,1)
-                view(Q₂,:,Block(j))[jr[k]] = V[k,j]
-            end
-        end
-        for k = 1:5
-            @test ρ.generators[k]Q₂ ≈ Q₂*blockdiag(σ,σ).generators[k]
+        Q̃ = singlemultreduce_blockdiag(ρ, σ)
+        @test Q̃'Q̃ ≈ I
+        for (σ_k,g) in zip(blockdiag(σ,σ).generators,ρ.generators)
+            @test Q̃'g*Q̃ ≈ Q'g*Q ≈ σ_k
         end
 
-        kr = Int[]
-        @time for k = 1:size(A,1)
-            if norm(A[k,jr]) > 1E-13
-                push!(kr, k)
-            end
+        ρ = blockdiag(σ, σ)
+        Q = qr(randn(size(ρ))).Q
+        ρ = conjugate(ρ, Q)
+        λ,Q = blockdiagonalize(ρ)
+        for (σ_k,g) in zip(blockdiag(σ,σ).generators,ρ.generators)
+            @test Q'g*Q ≈ σ_k
         end
-        @time nullspace(A[kr,jr])
     end
 end
 
