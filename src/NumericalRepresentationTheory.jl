@@ -1,9 +1,10 @@
 module NumericalRepresentationTheory
-using Base, LinearAlgebra, Permutations, SparseArrays
+using Base, LinearAlgebra, Permutations, SparseArrays, BlockBandedMatrices, BlockArrays, FillArrays
 import Base: getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
 
 import LinearAlgebra: adjoint, transpose, eigen
+import SparseArrays: blockdiag
 ## Kronecker product of Sn
 
 
@@ -40,13 +41,14 @@ Partition(σ::Int...) = Partition([σ...])
 
 function isless(a::Partition, b::Partition)
     n,m = Int(a), Int(b)
-    n < m && return true
-    if n == m
-        M,N = length(a.σ), length(b.σ)
-        M ≠ N && return isless(M,N)
-        for k = 1:N
-            a.σ[k] > b.σ[k] && return true
-            a.σ[k] < b.σ[k] && return false
+    if n ≠ m
+        return n < m
+    end
+    
+    M,N = length(a.σ), length(b.σ)
+    for k = 1:min(M,N)
+        if a.σ[k] ≠ b.σ[k] 
+            return a.σ[k] < b.σ[k]
         end
     end
 
@@ -128,9 +130,9 @@ YoungMatrix(dat, σ::Vector{Int}) = YoungMatrix(dat, Partition(σ))
 copy(Y::YoungMatrix) = YoungMatrix(copy(Y.data), Y.rows, Y.columns)
 
 size(Y::YoungMatrix) = size(Y.data)
-getindex(Y::YoungMatrix, k::Int, j::Int) = ifelse(k ≤ Y.columns[j] && j ≤ Y.rows[k], Y.data[k,j], 0)
+getindex(Y::YoungMatrix, k::Int, j::Int) = ifelse(k ≤ Y.columns[j] && j ≤ Y.rows[k], Y.data[k,j], 0)
 function setindex!(Y::YoungMatrix, v, k::Int, j::Int)
-    @assert k ≤ Y.columns[j] && j ≤ Y.rows[k]
+    @assert k ≤ Y.columns[j] && j ≤ Y.rows[k]
     Y.data[k,j] = v
 end
 
@@ -139,6 +141,16 @@ hash(Y::YoungMatrix) = hash(Y.data)
 
 struct YoungTableau
 	partitions::Vector{Partition}
+end
+
+function isless(a::YoungTableau, b::YoungTableau)
+    if length(a.partitions) ≠ length(b.partitions)
+        return length(a.partitions) < length(b.partitions)
+    end
+    for (p,q) in zip(a.partitions, b.partitions)
+        p ≠ q && return isless(p,q)
+    end
+    return false
 end
 
 function YoungMatrix(Yt::YoungTableau)
@@ -189,7 +201,7 @@ end
 function youngtableaux(σ::Partition)
 	σ == Partition([1]) && return [YoungTableau([σ])]
 	Yts = mapreduce(youngtableaux, vcat, lowerpartitions(σ))
-	map(Yt -> YoungTableau([Yt.partitions; σ]), Yts)
+	sort!(map(Yt -> YoungTableau([Yt.partitions; σ]), Yts))
 end
 
 
@@ -274,6 +286,14 @@ end
 Representation(σ::Int...) = Representation(Partition(σ...))
 Representation(σ::Partition) = Representation(irrepgenerators(σ))
 kron(A::Representation, B::Representation) = Representation(kron.(A.generators, B.generators))
+
+
+blockdiag(A::Representation...) = Representation(blockdiag.(getfield.(A, :generators)...))
+
+
+conjugate(ρ::Representation, Q) = Representation(map(g -> Q'*g*Q, ρ.generators))
+
+
 ⊗(A::Representation, B::Representation) = kron(A, B)
 
 |(A::Representation, n::AbstractVector) = Representation(A.generators[n])
@@ -329,6 +349,23 @@ end
 
 gelfand_reduce(R::Representation) = gelfand_reduce(Matrix.(gelfandbasis(R.generators)))
 
+function sortcontentsperm(Λ)
+    ps = contents2partition(Λ)
+    perm = Int[]
+
+
+    for pₖ in union(ps)
+        dₖ = hooklength(pₖ)
+        inds = findall(==(pₖ), ps)
+        aₖ = length(inds) ÷ dₖ # number of times repeated
+        for j = 1:aₖ
+            append!(perm, inds[j:aₖ:end])
+        end
+    end
+
+    perm
+end
+
 function gelfand_reduce(X)
        λ̃, Q₁ = eigen(Symmetric(X[1]))
        λ = round.(Int, λ̃)
@@ -359,12 +396,23 @@ function gelfand_reduce(X)
        Λ, Q₁*Q
 end
 
+"""
+    singlemultreduce(ρ)
+
+reduces a representation containing only a single irrep, multiple times.
+"""
+
 function singlemultreduce(ρ)
     m = multiplicities(ρ)
     @assert length(m) == 1
     singlemultreduce(ρ, Representation(first(keys(m))))
 end
 
+"""
+    singlemultreduce(ρ, σ)
+
+reduces a representation containing only a single irrep `σ`, multiple times.
+"""
 function singlemultreduce(ρ, σ)
     m = size(σ,1)
     n = size(ρ,1)
@@ -372,11 +420,57 @@ function singlemultreduce(ρ, σ)
     Q̃ = nullspace(convert(Matrix,A); atol=1E-10)*sqrt(m)
     reshape(vec(Q̃), n, n)
 end
+
+
+"""
+    singlemultreduce_blockdiag(ρ, σ)
+
+reduces a representation containing only a single irrep `σ`, multiple times.
+Unlike `singlemultreduce`, it is assumed that `ρ` comes from `gelfand_reduce` and hence
+the returned `Q` is guaranteed to be block-diagonal.
+"""
+function singlemultreduce_blockdiag(ρ, σ)
+    tol = 1E-10
+    m = size(σ,1)
+    n = size(ρ,1)
+    μ = n ÷ m
+    A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
+
+    # determine columns of `A` corresponding to non-zero entries of `Q`
+    jr = Int[]
+    for k = 1:m
+        append!(jr, range((k-1)*μ*m+k; step=m, length=μ))
+    end
+
+    # determine non-zero rows of A[:,jr]
+    kr = Int[]
+    for k = 1:size(A,1)
+        if norm(A[k,jr]) > tol
+            push!(kr, k)
+        end
+    end
+
+    V = nullspace(A[kr,jr])*sqrt(m)
+
+    # now populate non-zero entries of `Q`
+    Q = BandedBlockBandedMatrix{Float64}(undef, Fill(m,μ), Fill(m,μ), (n-1,n-1), (0,0))
+    for j = 1:size(V,2)
+        sh = (j-1) * size(V,1)
+        for k = 1:size(V,1)
+            view(Q,:,Block(j))[jr[k]] = V[k,j]
+        end
+    end
+
+    Q
+end
     
 
 
 function blockdiagonalize(ρ::Representation)
     Λ,Q = gelfand_reduce(ρ)
+    p = sortcontentsperm(Λ)
+    Q = Q[:,p]
+    Λ = Λ[p,:]
     n = length(ρ.generators)+1
     
     Q̃ = similar(Q)
@@ -386,20 +480,18 @@ function blockdiagonalize(ρ::Representation)
     c = contents2partition(Λ)
 
     k = 0
-    for pⱼ in partitions(n)
+    for pⱼ in union(c)
         j = findall(isequal(pⱼ), c)
-        if !isempty(j)
-            Qⱼ = Q[:,j]
-            ρⱼ = Representation(map(g -> Qⱼ'*g*Qⱼ, ρ.generators))
-            Q̃ⱼ = singlemultreduce(ρⱼ)
-            m = length(j)
-            Q̃[:,k+1:k+m] = Qⱼ * Q̃ⱼ
-            irrep = Representation(pⱼ)
-            for ℓ = 1:n-1
-                ρd[ℓ][k+1:k+m,k+1:k+m] = blockdiag(fill(irrep.generators[ℓ], m÷size(irrep,1))...)
-            end
-            k += m
+        Qⱼ = Q[:,j]
+        ρⱼ = conjugate(ρ, Qⱼ)
+        Q̃ⱼ = singlemultreduce_blockdiag(ρⱼ, Representation(pⱼ))
+        m = length(j)
+        Q̃[:,k+1:k+m] = Qⱼ * Q̃ⱼ
+        irrep = Representation(pⱼ)
+        for ℓ = 1:n-1
+            ρd[ℓ][k+1:k+m,k+1:k+m] = blockdiag(fill(irrep.generators[ℓ], m÷size(irrep,1))...)
         end
+        k += m
     end
     Representation(ρd), Q̃
 end
