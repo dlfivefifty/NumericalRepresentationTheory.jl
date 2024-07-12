@@ -422,6 +422,30 @@ function singlemultreduce(ρ, σ)
 end
 
 
+# Creates vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(ℓ))))...);
+# but with the rows and columns corresponding to zero entries removed 
+function singlemultreducedkron(ρ, σ)
+    tol = 1E-10
+    m = size(σ,1)
+    ℓ = size(ρ,1)
+    μ = ℓ ÷ m
+    B = zeros(m*(n-1)*ℓ, length(jr))
+    @time for κ=1:m, j= 1:μ, k = 1:n-1
+        B[range((k-1)*m*ℓ + (κ-1)*ℓ + 1; length=ℓ),(κ-1)*μ+j] = ρ.generators[k][:,(j-1)*m+κ]
+        B[range((k-1)*m*ℓ + (j-1)*m + κ; step=ℓ, length=m),(κ-1)*μ+j] -= σ.generators[k][:,κ]
+    end
+
+    # determine non-zero rows of A[:,jr]
+    kr = Int[]
+    for k = 1:size(B,1)
+        if norm(B[k,jr]) > tol
+            push!(kr, k)
+        end
+    end
+    B[kr,:]
+end
+
+
 """
     singlemultreduce_blockdiag(ρ, σ)
 
@@ -432,28 +456,19 @@ the returned `Q` is guaranteed to be block-diagonal.
 function singlemultreduce_blockdiag(ρ, σ)
     tol = 1E-10
     m = size(σ,1)
-    n = size(ρ,1)
-    μ = n ÷ m
-    A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(n))))...)
-
+    ℓ = size(ρ,1)
+    μ = ℓ ÷ m
+    
     # determine columns of `A` corresponding to non-zero entries of `Q`
     jr = Int[]
     for k = 1:m
         append!(jr, range((k-1)*μ*m+k; step=m, length=μ))
     end
 
-    # determine non-zero rows of A[:,jr]
-    kr = Int[]
-    for k = 1:size(A,1)
-        if norm(A[k,jr]) > tol
-            push!(kr, k)
-        end
-    end
-
-    V = nullspace(A[kr,jr])*sqrt(m)
+    V = nullspace(singlemultreducedkron(ρ, σ))*sqrt(m)
 
     # now populate non-zero entries of `Q`
-    Q = BandedBlockBandedMatrix{Float64}(undef, Fill(m,μ), Fill(m,μ), (n-1,n-1), (0,0))
+    Q = BandedBlockBandedMatrix{Float64}(undef, Fill(m,μ), Fill(m,μ), (ℓ-1,ℓ-1), (0,0))
     for j = 1:size(V,2)
         sh = (j-1) * size(V,1)
         for k = 1:size(V,1)
