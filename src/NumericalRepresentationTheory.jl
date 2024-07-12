@@ -429,7 +429,7 @@ function singlemultreducedkron(ρ, σ)
     m = size(σ,1)
     ℓ = size(ρ,1)
     μ = ℓ ÷ m
-    n = length(σ.generators)
+    n = length(σ.generators)+1
     B = zeros(m*(n-1)*ℓ, m*μ)
     for κ=1:m, j= 1:μ, k = 1:n-1
         B[range((k-1)*m*ℓ + (κ-1)*ℓ + 1; length=ℓ),(κ-1)*μ+j] = ρ.generators[k][:,(j-1)*m+κ]
@@ -466,7 +466,10 @@ function singlemultreduce_blockdiag(ρ, σ)
         append!(jr, range((k-1)*μ*m+k; step=m, length=μ))
     end
 
-    V = nullspace(singlemultreducedkron(ρ, σ))*sqrt(m)
+
+    Aₙ = singlemultreducedkron(ρ, σ)
+    V = svd(Aₙ).V[:,end-μ+1:end]*sqrt(m) # nullspace  corresponds to last μ singular vectors
+
 
     # now populate non-zero entries of `Q`
     Q = BandedBlockBandedMatrix{Float64}(undef, Fill(m,μ), Fill(m,μ), (ℓ-1,ℓ-1), (0,0))
