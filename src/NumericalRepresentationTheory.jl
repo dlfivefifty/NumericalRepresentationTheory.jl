@@ -429,8 +429,9 @@ function singlemultreducedkron(ρ, σ)
     m = size(σ,1)
     ℓ = size(ρ,1)
     μ = ℓ ÷ m
-    B = zeros(m*(n-1)*ℓ, length(jr))
-    @time for κ=1:m, j= 1:μ, k = 1:n-1
+    n = length(σ.generators)
+    B = zeros(m*(n-1)*ℓ, m*μ)
+    for κ=1:m, j= 1:μ, k = 1:n-1
         B[range((k-1)*m*ℓ + (κ-1)*ℓ + 1; length=ℓ),(κ-1)*μ+j] = ρ.generators[k][:,(j-1)*m+κ]
         B[range((k-1)*m*ℓ + (j-1)*m + κ; step=ℓ, length=m),(κ-1)*μ+j] -= σ.generators[k][:,κ]
     end
@@ -438,7 +439,7 @@ function singlemultreducedkron(ρ, σ)
     # determine non-zero rows of A[:,jr]
     kr = Int[]
     for k = 1:size(B,1)
-        if norm(B[k,jr]) > tol
+        if maximum(abs,view(B,k,:)) > tol
             push!(kr, k)
         end
     end
