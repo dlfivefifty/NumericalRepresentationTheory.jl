@@ -75,6 +75,31 @@ import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlem
             @test Q'g*Q ≈ σ_k
         end
     end
+
+    @testset "reduce matrix" begin
+        σ = Representation(2,2,1)
+        ρ = blockdiag(σ, σ, σ)
+        Q = qr(randn(size(ρ))).Q
+        ρ = conjugate(ρ, Q)
+
+        m = size(σ,1)
+        ℓ = size(ρ,1)
+        μ = ℓ ÷ m
+        n = length(ρ.generators)+1
+
+        jr = Int[]
+        for κ = 1:m
+            append!(jr, range((κ-1)*μ*m+κ; step=m, length=μ))
+        end
+
+        @time A = vcat((kron.(Ref(I(m)), ρ.generators) .- kron.(σ.generators, Ref(I(ℓ))))...);
+        B = zeros(m*(n-1)*ℓ, length(jr));
+        @time for κ=1:m, j= 1:μ, k = 1:n-1
+            B[range((k-1)*m*ℓ + (κ-1)*ℓ + 1; length=ℓ),(κ-1)*μ+j] = ρ.generators[k][:,(j-1)*m+κ]
+            B[range((k-1)*m*ℓ + (j-1)*m + κ; step=ℓ, length=m),(κ-1)*μ+j] -= σ.generators[k][:,κ]
+        end
+        @test B ≈ A[:,jr]
+    end
 end
 
 @testset "Canonical Projection" begin
