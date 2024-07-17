@@ -4,7 +4,7 @@ import Base: getindex, size, setindex!, maximum, Int, length,
                 ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
 
 import LinearAlgebra: adjoint, transpose, eigen
-import SparseArrays: blockdiag
+import SparseArrays: blockdiag, AbstractSparseMatrixCSC
 ## Kronecker product of Sn
 
 
@@ -287,8 +287,9 @@ Representation(σ::Int...) = Representation(Partition(σ...))
 Representation(σ::Partition) = Representation(irrepgenerators(σ))
 kron(A::Representation, B::Representation) = Representation(kron.(A.generators, B.generators))
 
-
-blockdiag(A::Representation...) = Representation(blockdiag.(getfield.(A, :generators)...))
+_blockdiag(A::AbstractSparseMatrixCSC...) = blockdiag(A...)
+_blockdiag(A::AbstractMatrix...) = blockdiag(map(sparse, A)...)
+blockdiag(A::Representation...) = Representation(_blockdiag.(getfield.(A, :generators)...))
 
 
 conjugate(ρ::Representation, Q) = Representation(map(g -> Q'*g*Q, ρ.generators))
