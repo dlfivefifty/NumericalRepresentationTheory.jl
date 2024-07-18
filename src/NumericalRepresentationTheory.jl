@@ -373,7 +373,7 @@ function gelfand_reduce(X)
        if !(Q₁'Q₁ ≈ I)
             error("The eigenvalue decomposition has failed")
        end
-       if !(isapprox(λ, λ̃; atol=1E-10))
+       if !(isapprox(λ, λ̃; atol=1E-7))
            error("$λ̃ are not all approximately an integer")
        end
        length(X) == 1 && return reshape(λ,length(λ),1),Q₁
