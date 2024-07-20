@@ -336,7 +336,7 @@ function eigmults(λ::Vector{Int})
 end
 
 
-function gelfandbasis(gen::Vector{MT}) where MT
+function gelfandbasis(gen::Vector{MT}) where MT<:Matrix
     n = length(gen)+1
     w = Vector{MT}(undef, n-1)
     tmp = similar(gen[1])
@@ -353,7 +353,7 @@ function gelfandbasis(gen::Vector{MT}) where MT
     w
 end
 
-gelfand_reduce(R::Representation) = gelfand_reduce(gelfandbasis(convert.(Matrix, R.generators)))
+gelfand_reduce(R::Representation) = gelfand_reduce(convert.(Matrix, gelfandbasis(R.generators)))
 
 function sortcontentsperm(Λ)
     ps = contents2partition(Λ)
