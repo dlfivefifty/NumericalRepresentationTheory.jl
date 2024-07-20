@@ -353,6 +353,20 @@ function gelfandbasis(gen::Vector{MT}) where MT<:Matrix
     w
 end
 
+function gelfandbasis(gen::Vector{MT}) where MT
+    n = length(gen)+1
+    w = Vector{MT}(undef, n-1)
+    for k = 1:n-1
+        a = gen[k]
+        w[k] = a
+        for j = k-1:-1:1
+            a = gen[j]*a*gen[j]
+            w[k] += a
+        end
+    end
+    w
+end
+
 gelfand_reduce(R::Representation) = gelfand_reduce(convert.(Matrix, gelfandbasis(R.generators)))
 
 function sortcontentsperm(Λ)
