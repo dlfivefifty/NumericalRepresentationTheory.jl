@@ -285,6 +285,8 @@ end
 
 Representation(σ::Int...) = Representation(Partition(σ...))
 Representation(σ::Partition) = Representation(irrepgenerators(σ))
+Representation{MT}(ρ::Representation) where MT = Representation(convert.(MT, ρ.generators))
+
 kron(A::Representation, B::Representation) = Representation(kron.(A.generators, B.generators))
 
 _blockdiag(A::AbstractSparseMatrixCSC...) = blockdiag(A...)
@@ -334,6 +336,23 @@ function eigmults(λ::Vector{Int})
 end
 
 
+function gelfandbasis(gen::Vector{MT}) where MT<:Matrix
+    n = length(gen)+1
+    w = Vector{MT}(undef, n-1)
+    tmp = similar(gen[1])
+    a = similar(tmp)
+    for k = 1:n-1
+        a .= gen[k]
+        w[k] = copy(a)
+        for j = k-1:-1:1
+            mul!(tmp, a, gen[j])
+            mul!(a, gen[j], tmp)
+            w[k] .+= a
+        end
+    end
+    w
+end
+
 function gelfandbasis(gen::Vector{MT}) where MT
     n = length(gen)+1
     w = Vector{MT}(undef, n-1)
@@ -348,7 +367,7 @@ function gelfandbasis(gen::Vector{MT}) where MT
     w
 end
 
-gelfand_reduce(R::Representation) = gelfand_reduce(Matrix.(gelfandbasis(R.generators)))
+gelfand_reduce(R::Representation) = gelfand_reduce(convert.(Matrix, gelfandbasis(R.generators)))
 
 function sortcontentsperm(Λ)
     ps = contents2partition(Λ)
