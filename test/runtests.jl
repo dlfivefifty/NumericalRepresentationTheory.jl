@@ -20,9 +20,9 @@ import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlem
 
     ρ = Representation(Partition([3,2])) ⊗ Representation(Partition([2,2,1])) ⊗ Representation(Partition([3,1,1]))
     λ,Q = blockdiagonalize(ρ)
-
-    for k = 1:length(λ.generators)
-        @test Q' * ρ.generators[k] * Q ≈ λ.generators[k]
+    irreps = Representation(λ)
+    for k = 1:length(ρ.generators)
+        @test Q' * ρ.generators[k] * Q ≈ irreps.generators[k]
     end
 
     @testset "Rotate irrep" begin
