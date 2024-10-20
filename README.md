@@ -49,7 +49,9 @@ julia> plot(multiplicities(R)) # We can also plot
 
 In addition, one can find an orthogonal transformation that reduces a representation to irreducibles:
 ```julia
-julia> ρ,Q = blockdiagonalize(R); # Q'R(g)*Q ≈ ρ(g) where ρ is a direct sum (block diagonal) of irreducibles.
+julia> λ,Q = blockdiagonalize(R); # Q'R(g)*Q ≈ ρ(g) where ρ = Representation(λ) is a direct sum (block diagonal) of irreducibles encoded by the dictionary λ.
+
+julia> ρ = Representation(λ);
 
 julia> Q'R(g)*Q ≈ ρ(g)
 true

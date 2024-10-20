@@ -1,7 +1,7 @@
 name = "NumericalRepresentationTheory"
 uuid = "6b7c1d51-ecee-4149-97a8-50646b514dce"
 authors = ["Sheehan Olver <solver@mac.com>"]
-version = "0.3.0"
+version = "0.4.0"
 
 [deps]
 BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
