@@ -1,6 +1,15 @@
 using NumericalRepresentationTheory, Permutations, LinearAlgebra, SparseArrays, BlockBandedMatrices, Test
 import NumericalRepresentationTheory: gelfandbasis, canonicalprojection, singlemultreduce, singlemultreduce_blockdiag, conjugate, gelfand_reduce, contents2partition, sortcontentsperm
 
+@testset "Partitions" begin
+    @test_throws ArgumentError partitions(-1)
+    @test_throws ArgumentError partitions(0)
+    @test partitions(1) == [Partition([1])]
+    @test partitions(2) == [Partition([2]), Partition([1,1])]
+    @test partitions(3) == [Partition([3]), Partition([2,1]), Partition([1,1,1])]
+    @test partitions(4) == [Partition([4]), Partition([3,1]), Partition([2,2]), Partition([2,1,1]), Partition([1,1,1,1])]
+end
+
 @testset "Representations" begin
     σ = Partition([3,3,2,1])
     @test length(youngtableaux(σ)) == hooklength(σ)
