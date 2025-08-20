@@ -93,6 +93,7 @@ Integer(σ::Partition) = Int(σ)
 
 
 function partitions(N)
+    N > 0 || throw(ArgumentError("N must be positive, got $N"))
     N == 1 && return [Partition([1])]
     ret = Partition[]
     part = partitions(N-1)
