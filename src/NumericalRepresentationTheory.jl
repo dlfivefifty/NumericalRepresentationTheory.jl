@@ -1,6 +1,6 @@
 module NumericalRepresentationTheory
 using Base, LinearAlgebra, Permutations, SparseArrays, BlockBandedMatrices, BlockArrays, FillArrays
-import Base: getindex, size, setindex!, maximum, Int, length,
+import Base: getindex, size, setindex!, maximum, Int, length, sign,
                 ==, isless, copy, kron, hash, first, show, lastindex, |, Integer, BigInt
 
 import LinearAlgebra: adjoint, transpose, eigen
@@ -138,6 +138,9 @@ function setindex!(Y::YoungMatrix, v, k::Int, j::Int)
 end
 
 hash(Y::YoungMatrix) = hash(Y.data)
+sign(Y::YoungMatrix) = sign(Permutation(filter(!iszero, vec(Y))))
+
+adjoint(Y::YoungMatrix) = YoungMatrix(Y.data', Y.columns, Y.rows)
 
 
 struct YoungTableau
