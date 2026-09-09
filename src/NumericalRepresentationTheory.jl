@@ -11,7 +11,7 @@ import SparseArrays: blockdiag, AbstractSparseMatrixCSC
 
 export Partition, YoungMatrix, partitions, youngtableaux, YoungTableau, ⊗, ⊕,
         Representation, multiplicities, generators, standardrepresentation, randpartition,
-        blockdiagonalize, hooklength
+        blockdiagonalize, hooklength, changeofbasis
 
 
 # utility function
@@ -278,6 +278,128 @@ end
 
 irrepgenerators(σ::Partition) = [irrepgenerator(σ, i) for i=1:Int(σ)-1]
 
+function tabloidkey(Y::YoungMatrix)
+    key = Vector{Int}(undef, Int(Y.rows))
+    for j = 1:length(Y.rows), k = 1:Y.rows[j]
+        key[Y[j,k]] = j
+    end
+    Tuple(key)
+end
+
+function tabloidkeys(σ::Partition)
+    ret = Tuple{Vararg{Int}}[]
+    key = Vector{Int}(undef, Int(σ))
+    counts = copy(σ.σ)
+    function rec!(i)
+        if i > length(key)
+            push!(ret, Tuple(key))
+            return
+        end
+        for j in eachindex(counts)
+            counts[j] == 0 && continue
+            key[i] = j
+            counts[j] -= 1
+            rec!(i+1)
+            counts[j] += 1
+        end
+    end
+    rec!(1)
+    ret
+end
+
+function foreachpermutation(f, v::Vector{Int}, k::Int=1, s::Int=1)
+    if k ≥ length(v)
+        f(v, s)
+        return
+    end
+    foreachpermutation(f, v, k+1, s)
+    for j = k+1:length(v)
+        v[k], v[j] = v[j], v[k]
+        foreachpermutation(f, v, k+1, -s)
+        v[k], v[j] = v[j], v[k]
+    end
+end
+
+function polytabloid(lookup, Y::YoungMatrix)
+    key = collect(tabloidkey(Y))
+    cols = [Int[Y[k,j] for k = 1:Y.columns[j]] for j = 1:length(Y.columns)]
+    ret = Dict{Int,Int}()
+    function rec!(j, s)
+        if j > length(cols)
+            i = lookup[Tuple(key)]
+            ret[i] = get(ret, i, 0) + s
+            return
+        end
+        col = cols[j]
+        saved = key[col]
+        foreachpermutation(col) do perm, t
+            for k = 1:length(col)
+                key[perm[k]] = k
+            end
+            rec!(j+1, s*t)
+        end
+        key[col] = saved
+    end
+    rec!(1, 1)
+    ret
+end
+
+function spechtbasis(σ::Partition)
+    tabs = tabloidkeys(σ)
+    lookup = Dict(tabs .=> eachindex(tabs))
+    basis = zeros(Int, length(tabs), Int(hooklength(σ)))
+    for (j,Y) in enumerate(YoungMatrix.(youngtableaux(σ)))
+        for (k,v) in polytabloid(lookup, Y)
+            basis[k,j] += v
+        end
+    end
+    tabs, lookup, basis
+end
+
+function standardirrepgenerator(tabs, lookup, basis, i)
+    p = similar(collect(first(tabs)))
+    is = Vector{Int}(undef, length(tabs))
+    for (j,t) in enumerate(tabs)
+        p .= t
+        p[i], p[i+1] = p[i+1], p[i]
+        is[j] = lookup[Tuple(p)]
+    end
+    G = sparse(is, 1:length(tabs), ones(Int, length(tabs)))
+
+    rows = Int[]
+    r = 0
+    for j = 1:size(basis,1)
+        rank(Float64.(basis[[rows; j],:])) > r || continue
+        push!(rows, j)
+        r += 1
+        r == size(basis,2) && break
+    end
+
+    X = Rational{Int}.(basis[rows,:]) \ Rational{Int}.((G*basis)[rows,:])
+    @assert all(denominator.(X) .== 1)
+    sparse(Int.(X))
+end
+
+function standardirrepgenerators(σ::Partition)
+    tabs, lookup, basis = spechtbasis(σ)
+    [standardirrepgenerator(tabs, lookup, basis, i) for i=1:Int(σ)-1]
+end
+
+"""
+    changeofbasis(λ₁::Int, …, λₙ::Int)
+    changeofbasis(σ::Partition)
+
+returns `(Q, Q⁻¹)` where `Q` maps the standard Specht/polytabloid basis to the default
+orthogonal basis for the irreducible representation associated with `σ`.
+"""
+function changeofbasis(σ::Partition)
+    _, _, basis = spechtbasis(σ)
+    Q = Matrix(cholesky(Symmetric(Float64.(transpose(basis) * basis))).U)
+    Q, inv(Q)
+end
+
+changeofbasis(σ::Int...) = changeofbasis(Partition(σ...))
+
 
 """
     Representation([τ₁,…,τₙ])
@@ -294,9 +416,11 @@ end
     Representation(Partition(λ₁, …, λₙ))
 
 both generate the irreducible representation associated with the given partition.
+Pass `orthogonal=false` to construct the standard Specht/polytabloid basis instead of
+the default orthogonal basis.
 """
-Representation(σ::Int...) = Representation(Partition(σ...))
-Representation(σ::Partition) = Representation(irrepgenerators(σ))
+Representation(σ::Int...; orthogonal::Bool=true) = Representation(Partition(σ...); orthogonal)
+Representation(σ::Partition; orthogonal::Bool=true) = Representation(orthogonal ? irrepgenerators(σ) : standardirrepgenerators(σ))
 Representation{MT}(ρ::Representation) where MT = Representation(convert.(MT, ρ.generators))
 
 

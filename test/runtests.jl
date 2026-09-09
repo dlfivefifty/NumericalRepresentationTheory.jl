@@ -17,6 +17,32 @@ end
 
     @test multiplicities(standardrepresentation(4))[Partition([3,1])] == 1
 
+    @testset "Standard irreducibles" begin
+        ρ = Representation(3,1; orthogonal=false)
+        ρ_orth = Representation(3,1)
+        Q, Qinv = changeofbasis(3,1)
+        @test size(ρ) == size(ρ_orth) == (3,3)
+        @test !issymmetric(Matrix(ρ.generators[1]))
+        @test Q * Qinv ≈ I
+        @test Qinv * Q ≈ I
+        @test istriu(Q)
+        @test all(diag(Q) .> 0)
+
+        I₃ = Matrix{Int}(I, 3, 3)
+        @test Matrix(ρ.generators[1]^2) == I₃
+        @test Matrix(ρ.generators[2]^2) == I₃
+        @test Matrix(ρ.generators[3]^2) == I₃
+        @test Matrix(ρ.generators[1] * ρ.generators[3]) == Matrix(ρ.generators[3] * ρ.generators[1])
+        @test Matrix(ρ.generators[1] * ρ.generators[2] * ρ.generators[1]) == Matrix(ρ.generators[2] * ρ.generators[1] * ρ.generators[2])
+        @test Matrix(ρ.generators[2] * ρ.generators[3] * ρ.generators[2]) == Matrix(ρ.generators[3] * ρ.generators[2] * ρ.generators[3])
+
+        for g in PermGen(4)
+            @test tr(Matrix(ρ(g))) ≈ tr(ρ_orth(g)) atol=1E-12
+            @test Q * Matrix(ρ(g)) ≈ Matrix(ρ_orth(g)) * Q
+            @test Qinv * Matrix(ρ_orth(g)) ≈ Matrix(ρ(g)) * Qinv
+        end
+    end
+
 
     s = standardrepresentation(3)
     ρ = s ⊗ s
@@ -215,4 +241,3 @@ end
 # for k in axes(Λ,1), j in axes(Λ,2)
 #     Λ[k,j] = round(Int,basis[j][k,k])
 # end
-
