@@ -11,7 +11,7 @@ import SparseArrays: blockdiag, AbstractSparseMatrixCSC
 
 export Partition, YoungMatrix, partitions, youngtableaux, YoungTableau, ⊗, ⊕,
         Representation, multiplicities, generators, standardrepresentation, randpartition,
-        blockdiagonalize, hooklength
+        blockdiagonalize, hooklength, changeofbasis
 
 
 # utility function
@@ -384,6 +384,21 @@ function standardirrepgenerators(σ::Partition)
     tabs, lookup, basis = spechtbasis(σ)
     [standardirrepgenerator(tabs, lookup, basis, i) for i=1:Int(σ)-1]
 end
+
+"""
+    changeofbasis(λ₁::Int, …, λₙ::Int)
+    changeofbasis(σ::Partition)
+
+returns `(Q, Q⁻¹)` where `Q` maps the standard Specht/polytabloid basis to the default
+orthogonal basis for the irreducible representation associated with `σ`.
+"""
+function changeofbasis(σ::Partition)
+    _, _, basis = spechtbasis(σ)
+    Q = Matrix(cholesky(Symmetric(Float64.(transpose(basis) * basis))).U)
+    Q, inv(Q)
+end
+
+changeofbasis(σ::Int...) = changeofbasis(Partition(σ...))
 
 
 """

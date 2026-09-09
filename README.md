@@ -32,6 +32,8 @@ julia> R₂ = Representation(2,2,2,1);
 
 julia> S = Representation(3,2,1,1; orthogonal=false); # Standard Specht/polytabloid basis
 
+julia> Q,Qinv = changeofbasis(3,2,1,1); # Convert between standard and orthogonal bases
+
 julia> R = R₁ ⊗ R₂; # Tensor product representation
 
 julia> multiplicities(R) # Returns a dictionary whose keys are partitions and values are the multiplicities

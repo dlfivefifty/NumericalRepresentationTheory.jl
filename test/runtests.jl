@@ -20,8 +20,13 @@ end
     @testset "Standard irreducibles" begin
         ρ = Representation(3,1; orthogonal=false)
         ρ_orth = Representation(3,1)
+        Q, Qinv = changeofbasis(3,1)
         @test size(ρ) == size(ρ_orth) == (3,3)
         @test !issymmetric(Matrix(ρ.generators[1]))
+        @test Q * Qinv ≈ I
+        @test Qinv * Q ≈ I
+        @test istriu(Q)
+        @test all(diag(Q) .> 0)
 
         I₃ = Matrix{Int}(I, 3, 3)
         @test Matrix(ρ.generators[1]^2) == I₃
@@ -33,6 +38,8 @@ end
 
         for g in PermGen(4)
             @test tr(Matrix(ρ(g))) ≈ tr(ρ_orth(g)) atol=1E-12
+            @test Q * Matrix(ρ(g)) ≈ Matrix(ρ_orth(g)) * Q
+            @test Qinv * Matrix(ρ_orth(g)) ≈ Matrix(ρ(g)) * Qinv
         end
     end
 
