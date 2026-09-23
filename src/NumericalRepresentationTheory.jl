@@ -278,111 +278,44 @@ end
 
 irrepgenerators(σ::Partition) = [irrepgenerator(σ, i) for i=1:Int(σ)-1]
 
-function tabloidkey(Y::YoungMatrix)
-    key = Vector{Int}(undef, Int(Y.rows))
-    for j = 1:length(Y.rows), k = 1:Y.rows[j]
-        key[Y[j,k]] = j
-    end
-    Tuple(key)
-end
+# tabloid of Y encoded as the row containing each entry 1:n
+tabloidkey(Y::YoungMatrix) = [findfirst(==(i), Y)[1] for i = 1:Int(Y.rows)]
 
-function tabloidkeys(σ::Partition)
-    ret = Tuple{Vararg{Int}}[]
-    key = Vector{Int}(undef, Int(σ))
-    counts = copy(σ.σ)
-    function rec!(i)
-        if i > length(key)
-            push!(ret, Tuple(key))
-            return
-        end
-        for j in eachindex(counts)
-            counts[j] == 0 && continue
-            key[i] = j
-            counts[j] -= 1
-            rec!(i+1)
-            counts[j] += 1
-        end
-    end
-    rec!(1)
-    ret
-end
-
-function foreachpermutation(f, v::Vector{Int}, k::Int=1, s::Int=1)
-    if k ≥ length(v)
-        f(v, s)
-        return
-    end
-    foreachpermutation(f, v, k+1, s)
-    for j = k+1:length(v)
-        v[k], v[j] = v[j], v[k]
-        foreachpermutation(f, v, k+1, -s)
-        v[k], v[j] = v[j], v[k]
-    end
-end
-
-function polytabloid(lookup, Y::YoungMatrix)
-    key = collect(tabloidkey(Y))
-    cols = [Int[Y[k,j] for k = 1:Y.columns[j]] for j = 1:length(Y.columns)]
-    ret = Dict{Int,Int}()
-    function rec!(j, s)
-        if j > length(cols)
-            i = lookup[Tuple(key)]
-            ret[i] = get(ret, i, 0) + s
-            return
-        end
-        col = cols[j]
-        saved = key[col]
-        foreachpermutation(col) do perm, t
-            for k = 1:length(col)
-                key[perm[k]] = k
-            end
-            rec!(j+1, s*t)
-        end
-        key[col] = saved
-    end
-    rec!(1, 1)
-    ret
-end
-
+# Returns `(lookup, basis, rows)` where the columns of `basis` are the polytabloids e_T
+# in tabloid coordinates (indexed via `lookup`) and `rows[j]` is the index of the tabloid {T_j}.
+# Since e_T contains {T} with coefficient 1, `basis[rows,:]` is unitriangular.
 function spechtbasis(σ::Partition)
-    tabs = tabloidkeys(σ)
-    lookup = Dict(tabs .=> eachindex(tabs))
-    basis = zeros(Int, length(tabs), Int(hooklength(σ)))
-    for (j,Y) in enumerate(YoungMatrix.(youngtableaux(σ)))
-        for (k,v) in polytabloid(lookup, Y)
-            basis[k,j] += v
+    Ys = YoungMatrix.(youngtableaux(σ))
+    lookup = Dict{Vector{Int},Int}()
+    Is, Js, Vs = Int[], Int[], Int[]
+    for (j,Y) in enumerate(Ys)
+        key = tabloidkey(Y)
+        cols = [Y[1:Y.columns[c], c] for c = 1:length(Y.columns)]
+        for ps in Iterators.product((PermGen(length(c)) for c in cols)...)
+            for (c,p) in zip(cols, ps)
+                key[c[p.data]] = 1:length(c)
+            end
+            push!(Is, get!(lookup, copy(key), length(lookup)+1))
+            push!(Js, j)
+            push!(Vs, prod(sign, ps))
         end
     end
-    tabs, lookup, basis
-end
-
-function standardirrepgenerator(tabs, lookup, basis, i)
-    p = similar(collect(first(tabs)))
-    is = Vector{Int}(undef, length(tabs))
-    for (j,t) in enumerate(tabs)
-        p .= t
-        p[i], p[i+1] = p[i+1], p[i]
-        is[j] = lookup[Tuple(p)]
-    end
-    G = sparse(is, 1:length(tabs), ones(Int, length(tabs)))
-
-    rows = Int[]
-    r = 0
-    for j = 1:size(basis,1)
-        rank(Float64.(basis[[rows; j],:])) > r || continue
-        push!(rows, j)
-        r += 1
-        r == size(basis,2) && break
-    end
-
-    X = Rational{Int}.(basis[rows,:]) \ Rational{Int}.((G*basis)[rows,:])
-    @assert all(denominator.(X) .== 1)
-    sparse(Int.(X))
+    lookup, sparse(Is, Js, Vs, length(lookup), length(Ys)), [lookup[tabloidkey(Y)] for Y in Ys]
 end
 
 function standardirrepgenerators(σ::Partition)
-    tabs, lookup, basis = spechtbasis(σ)
-    [standardirrepgenerator(tabs, lookup, basis, i) for i=1:Int(σ)-1]
+    n = Int(σ)
+    lookup, basis, rows = spechtbasis(σ)
+    tabs = Vector{Vector{Int}}(undef, length(lookup))
+    for (k,v) in lookup
+        tabs[v] = k
+    end
+    B = Rational{Int}.(Matrix(basis[rows,:]))
+    map(1:n-1) do i
+        swapped = [lookup[tabs[r][[1:i-1; i+1; i; i+2:n]]] for r in rows]
+        X = B \ Rational{Int}.(Matrix(basis[swapped,:]))
+        sparse(Int.(X))
+    end
 end
 
 """
@@ -393,8 +326,8 @@ returns `(Q, Q⁻¹)` where `Q` maps the standard Specht/polytabloid basis to th
 orthogonal basis for the irreducible representation associated with `σ`.
 """
 function changeofbasis(σ::Partition)
-    _, _, basis = spechtbasis(σ)
-    Q = Matrix(cholesky(Symmetric(Float64.(transpose(basis) * basis))).U)
+    _, basis, _ = spechtbasis(σ)
+    Q = cholesky(Symmetric(Float64.(Matrix(transpose(basis) * basis)))).U
     Q, inv(Q)
 end
 
@@ -419,7 +352,7 @@ both generate the irreducible representation associated with the given partition
 Pass `orthogonal=false` to construct the standard Specht/polytabloid basis instead of
 the default orthogonal basis.
 """
-Representation(σ::Int...; orthogonal::Bool=true) = Representation(Partition(σ...); orthogonal)
+Representation(σ::Int...; kwds...) = Representation(Partition(σ...); kwds...)
 Representation(σ::Partition; orthogonal::Bool=true) = Representation(orthogonal ? irrepgenerators(σ) : standardirrepgenerators(σ))
 Representation{MT}(ρ::Representation) where MT = Representation(convert.(MT, ρ.generators))
 

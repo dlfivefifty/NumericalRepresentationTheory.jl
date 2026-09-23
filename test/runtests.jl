@@ -18,28 +18,35 @@ end
     @test multiplicities(standardrepresentation(4))[Partition([3,1])] == 1
 
     @testset "Standard irreducibles" begin
-        ρ = Representation(3,1; orthogonal=false)
-        ρ_orth = Representation(3,1)
-        Q, Qinv = changeofbasis(3,1)
-        @test size(ρ) == size(ρ_orth) == (3,3)
-        @test !issymmetric(Matrix(ρ.generators[1]))
-        @test Q * Qinv ≈ I
-        @test Qinv * Q ≈ I
-        @test istriu(Q)
-        @test all(diag(Q) .> 0)
+        for λ in ((3,1), (3,2,1))
+            σ = Partition(λ...)
+            n, d = Int(σ), Int(hooklength(σ))
+            ρ = Representation(λ...; orthogonal=false)
+            ρ_orth = Representation(λ...)
+            Q, Qinv = changeofbasis(λ...)
+            @test size(ρ) == size(ρ_orth) == (d,d)
+            @test eltype(ρ.generators[1]) == Int
+            @test !issymmetric(Matrix(ρ.generators[1]))
+            @test Q * Qinv ≈ I
+            @test Qinv * Q ≈ I
+            @test istriu(Q)
+            @test all(diag(Q) .> 0)
 
-        I₃ = Matrix{Int}(I, 3, 3)
-        @test Matrix(ρ.generators[1]^2) == I₃
-        @test Matrix(ρ.generators[2]^2) == I₃
-        @test Matrix(ρ.generators[3]^2) == I₃
-        @test Matrix(ρ.generators[1] * ρ.generators[3]) == Matrix(ρ.generators[3] * ρ.generators[1])
-        @test Matrix(ρ.generators[1] * ρ.generators[2] * ρ.generators[1]) == Matrix(ρ.generators[2] * ρ.generators[1] * ρ.generators[2])
-        @test Matrix(ρ.generators[2] * ρ.generators[3] * ρ.generators[2]) == Matrix(ρ.generators[3] * ρ.generators[2] * ρ.generators[3])
+            # Coxeter relations
+            s = ρ.generators
+            for i = 1:n-1
+                @test s[i]^2 == I
+                i < n-1 && @test s[i]*s[i+1]*s[i] == s[i+1]*s[i]*s[i+1]
+                for j = i+2:n-1
+                    @test s[i]*s[j] == s[j]*s[i]
+                end
+            end
 
-        for g in PermGen(4)
-            @test tr(Matrix(ρ(g))) ≈ tr(ρ_orth(g)) atol=1E-12
-            @test Q * Matrix(ρ(g)) ≈ Matrix(ρ_orth(g)) * Q
-            @test Qinv * Matrix(ρ_orth(g)) ≈ Matrix(ρ(g)) * Qinv
+            for g in PermGen(n)
+                @test tr(ρ(g)) ≈ tr(ρ_orth(g)) atol=1E-12
+                @test Q * Matrix(ρ(g)) ≈ Matrix(ρ_orth(g)) * Q
+                @test Qinv * Matrix(ρ_orth(g)) ≈ Matrix(ρ(g)) * Qinv
+            end
         end
     end
 
