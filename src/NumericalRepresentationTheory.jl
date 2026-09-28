@@ -11,7 +11,7 @@ import SparseArrays: blockdiag, AbstractSparseMatrixCSC
 
 export Partition, YoungMatrix, partitions, youngtableaux, YoungTableau, ⊗, ⊕,
         Representation, multiplicities, generators, standardrepresentation, randpartition,
-        blockdiagonalize, hooklength
+        blockdiagonalize, hooklength, changeofbasis
 
 
 # utility function
@@ -278,6 +278,61 @@ end
 
 irrepgenerators(σ::Partition) = [irrepgenerator(σ, i) for i=1:Int(σ)-1]
 
+# tabloid of Y encoded as the row containing each entry 1:n
+tabloidkey(Y::YoungMatrix) = [findfirst(==(i), Y)[1] for i = 1:Int(Y.rows)]
+
+# Returns `(lookup, basis, rows)` where the columns of `basis` are the polytabloids e_T
+# in tabloid coordinates (indexed via `lookup`) and `rows[j]` is the index of the tabloid {T_j}.
+# Since e_T contains {T} with coefficient 1, `basis[rows,:]` is unitriangular.
+function spechtbasis(σ::Partition)
+    Ys = YoungMatrix.(youngtableaux(σ))
+    lookup = Dict{Vector{Int},Int}()
+    Is, Js, Vs = Int[], Int[], Int[]
+    for (j,Y) in enumerate(Ys)
+        key = tabloidkey(Y)
+        cols = [Y[1:Y.columns[c], c] for c = 1:length(Y.columns)]
+        for ps in Iterators.product((PermGen(length(c)) for c in cols)...)
+            for (c,p) in zip(cols, ps)
+                key[c[p.data]] = 1:length(c)
+            end
+            push!(Is, get!(lookup, copy(key), length(lookup)+1))
+            push!(Js, j)
+            push!(Vs, prod(sign, ps))
+        end
+    end
+    lookup, sparse(Is, Js, Vs, length(lookup), length(Ys)), [lookup[tabloidkey(Y)] for Y in Ys]
+end
+
+function standardirrepgenerators(σ::Partition)
+    n = Int(σ)
+    lookup, basis, rows = spechtbasis(σ)
+    tabs = Vector{Vector{Int}}(undef, length(lookup))
+    for (k,v) in lookup
+        tabs[v] = k
+    end
+    B = Rational{Int}.(Matrix(basis[rows,:]))
+    map(1:n-1) do i
+        swapped = [lookup[tabs[r][[1:i-1; i+1; i; i+2:n]]] for r in rows]
+        X = B \ Rational{Int}.(Matrix(basis[swapped,:]))
+        sparse(Int.(X))
+    end
+end
+
+"""
+    changeofbasis(λ₁::Int, …, λₙ::Int)
+    changeofbasis(σ::Partition)
+
+returns `(Q, Q⁻¹)` where `Q` maps the standard Specht/polytabloid basis to the default
+orthogonal basis for the irreducible representation associated with `σ`.
+"""
+function changeofbasis(σ::Partition)
+    _, basis, _ = spechtbasis(σ)
+    Q = cholesky(Symmetric(Float64.(Matrix(transpose(basis) * basis)))).U
+    Q, inv(Q)
+end
+
+changeofbasis(σ::Int...) = changeofbasis(Partition(σ...))
+
 
 """
     Representation([τ₁,…,τₙ])
@@ -294,9 +349,11 @@ end
     Representation(Partition(λ₁, …, λₙ))
 
 both generate the irreducible representation associated with the given partition.
+Pass `orthogonal=false` to construct the standard Specht/polytabloid basis instead of
+the default orthogonal basis.
 """
-Representation(σ::Int...) = Representation(Partition(σ...))
-Representation(σ::Partition) = Representation(irrepgenerators(σ))
+Representation(σ::Int...; kwds...) = Representation(Partition(σ...); kwds...)
+Representation(σ::Partition; orthogonal::Bool=true) = Representation(orthogonal ? irrepgenerators(σ) : standardirrepgenerators(σ))
 Representation{MT}(ρ::Representation) where MT = Representation(convert.(MT, ρ.generators))
 
 

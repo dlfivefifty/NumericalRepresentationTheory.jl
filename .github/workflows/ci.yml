@@ -25,7 +25,8 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.10'
+          - '1'
+          - 'lts'
         os:
           - ubuntu-latest
           - macOS-latest
@@ -55,4 +56,3 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: lcov.info
-

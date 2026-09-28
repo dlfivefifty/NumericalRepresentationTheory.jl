@@ -17,6 +17,39 @@ end
 
     @test multiplicities(standardrepresentation(4))[Partition([3,1])] == 1
 
+    @testset "Standard irreducibles" begin
+        for λ in ((3,1), (3,2,1))
+            σ = Partition(λ...)
+            n, d = Int(σ), Int(hooklength(σ))
+            ρ = Representation(λ...; orthogonal=false)
+            ρ_orth = Representation(λ...)
+            Q, Qinv = changeofbasis(λ...)
+            @test size(ρ) == size(ρ_orth) == (d,d)
+            @test eltype(ρ.generators[1]) == Int
+            @test !issymmetric(Matrix(ρ.generators[1]))
+            @test Q * Qinv ≈ I
+            @test Qinv * Q ≈ I
+            @test istriu(Q)
+            @test all(diag(Q) .> 0)
+
+            # Coxeter relations
+            s = ρ.generators
+            for i = 1:n-1
+                @test s[i]^2 == I
+                i < n-1 && @test s[i]*s[i+1]*s[i] == s[i+1]*s[i]*s[i+1]
+                for j = i+2:n-1
+                    @test s[i]*s[j] == s[j]*s[i]
+                end
+            end
+
+            for g in PermGen(n)
+                @test tr(ρ(g)) ≈ tr(ρ_orth(g)) atol=1E-12
+                @test Q * Matrix(ρ(g)) ≈ Matrix(ρ_orth(g)) * Q
+                @test Qinv * Matrix(ρ_orth(g)) ≈ Matrix(ρ(g)) * Qinv
+            end
+        end
+    end
+
 
     s = standardrepresentation(3)
     ρ = s ⊗ s
@@ -215,4 +248,3 @@ end
 # for k in axes(Λ,1), j in axes(Λ,2)
 #     Λ[k,j] = round(Int,basis[j][k,k])
 # end
-
